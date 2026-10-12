@@ -1,0 +1,478 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#047857">
+    <title>Agendar com {{ profile.user.get_full_name|default:profile.user.username }} | AvisanoZap</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+        body {
+            font-family: Inter, ui-sans-serif, system-ui, -apple-system,
+                BlinkMacSystemFont, "Segoe UI", sans-serif;
+        }
+
+        input,
+        select {
+            color-scheme: light;
+        }
+
+        .form-field {
+            width: 100%;
+            border: 1px solid #dbe4e0;
+            border-radius: 12px;
+            padding: 13px 14px;
+            background: #fff;
+            font-size: 14px;
+            transition: border-color 150ms, box-shadow 150ms;
+        }
+
+        .form-field:focus {
+            outline: none;
+            border-color: #059669;
+            box-shadow: 0 0 0 3px rgb(5 150 105 / 12%);
+        }
+
+        .form-field::placeholder {
+            color: #9ca3af;
+        }
+
+        .field-label {
+            display: block;
+            margin-bottom: 8px;
+            color: #374151;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .submit-button:disabled {
+            cursor: not-allowed;
+            opacity: 0.65;
+        }
+    </style>
+</head>
+
+<body class="min-h-screen bg-[#f3f7f5] text-slate-800 antialiased">
+
+    <header class="bg-emerald-800 text-white">
+        <div class="mx-auto flex max-w-5xl items-center justify-between px-5 py-4 sm:px-8">
+            <a href="/" class="flex items-center gap-2 text-lg font-bold tracking-tight">
+                <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-white/15">
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                        class="h-5 w-5"
+                        aria-hidden="true"
+                    >
+                        <path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8z"/>
+                    </svg>
+                </span>
+                AvisanoZap
+            </a>
+
+            <span class="flex items-center gap-2 text-xs font-medium text-emerald-100 sm:text-sm">
+                <span class="h-2 w-2 rounded-full bg-emerald-300"></span>
+                Agendamento online
+            </span>
+        </div>
+    </header>
+
+    <main class="mx-auto max-w-5xl px-4 py-8 sm:px-8 sm:py-12">
+        
+        <div class="mx-auto grid max-w-4xl overflow-hidden rounded-3xl bg-white shadow-xl shadow-slate-200/60 md:grid-cols-[0.85fr_1.15fr]">
+
+            <section class="relative overflow-hidden bg-emerald-800 p-7 text-white sm:p-9 md:p-8 lg:p-10">
+                <div class="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-emerald-700/70"></div>
+                <div class="absolute -bottom-20 -left-16 h-56 w-56 rounded-full bg-emerald-700/60"></div>
+
+                <div class="relative">
+                    <span class="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-medium text-emerald-50">
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.8"
+                            class="h-4 w-4"
+                            aria-hidden="true"
+                        >
+                            <rect x="3" y="5" width="18" height="16" rx="2"/>
+                            <path d="M16 3v4M8 3v4M3 11h18"/>
+                        </svg>
+                        Agende em poucos passos
+                    </span>
+
+                    <div class="mt-8">
+                        <div class="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-white/15 text-2xl font-bold">
+                            {{ profile.user.get_full_name|default:profile.user.username|first|upper }}
+                        </div>
+
+                        <p class="mb-2 text-sm font-medium text-emerald-200">
+                            Seu próximo atendimento
+                        </p>
+
+                        <h1 class="text-3xl font-bold leading-tight tracking-tight sm:text-4xl">
+                            Agende seu horário com tranquilidade.
+                        </h1>
+
+                        <p class="mt-4 text-sm leading-6 text-emerald-100">
+                            Escolha o serviço, informe seus dados e selecione
+                            o melhor horário para você.
+                        </p>
+                    </div>
+
+                    <div class="mt-8 space-y-4 border-t border-white/15 pt-6">
+                        <div class="flex items-start gap-3">
+                            <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/10">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-5 w-5" aria-hidden="true">
+                                    <path d="M12 8v4l3 2"/>
+                                    <circle cx="12" cy="12" r="9"/>
+                                </svg>
+                            </span>
+                            <div>
+                                <p class="text-sm font-semibold">Simples e rápido</p>
+                                <p class="mt-1 text-xs leading-5 text-emerald-100">Escolha seu serviço sem precisar ligar.</p>
+                            </div>
+                        </div>
+
+                        <div class="flex items-start gap-3">
+                            <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/10">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-5 w-5" aria-hidden="true">
+                                    <path d="M20 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8z"/>
+                                </svg>
+                            </span>
+                            <div>
+                                <p class="text-sm font-semibold">Confirmação pelo WhatsApp</p>
+                                <p class="mt-1 text-xs leading-5 text-emerald-100">Receba os detalhes do seu agendamento.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="p-6 sm:p-9 lg:p-10">
+                <div class="mb-7">
+                    <p class="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">
+                        Novo agendamento com {{ profile_name }}
+                    </p>
+                    <h2 class="mt-2 text-2xl font-bold tracking-tight text-slate-900">
+                        Vamos marcar?
+                    </h2>
+                    <p class="mt-2 text-sm leading-6 text-slate-500">
+                        Preencha os dados abaixo para solicitar seu horário.
+                    </p>
+                </div>
+
+                <form id="schedule-form" class="space-y-5">
+                    {% csrf_token %}
+
+                    <div>
+                        <label for="service-select" class="field-label">
+                            Serviço desejado
+                        </label>
+                        <select id="service-select" required class="form-field">
+                            <option value="">Selecione um serviço</option>
+                            {% for service in services %}
+                            <option
+                                value="{{ service.id }}"
+                                data-duration="{{ service.duration_minutes }}"
+                            >
+                                {{ service.name }} — R$ {{ service.price }} · {{ service.duration_minutes }} min
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="client-name" class="field-label">
+                            Nome completo
+                        </label>
+                        <input
+                            type="text"
+                            id="client-name"
+                            name="client_name"
+                            required
+                            maxlength="200"
+                            autocomplete="name"
+                            placeholder="Como podemos chamar você?"
+                            class="form-field"
+                        >
+                    </div>
+
+                    <div>
+                        <label for="client-whatsapp" class="field-label">
+                            WhatsApp com DDD
+                        </label>
+                        <div class="relative">
+                            <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm font-medium text-slate-500">
+                                🇧🇷
+                            </span>
+                            <input
+                                type="tel"
+                                id="client-whatsapp"
+                                name="client_whatsapp"
+                                required
+                                inputmode="numeric"
+                                autocomplete="tel-national"
+                                maxlength="16"
+                                placeholder="(51) 99999-9999"
+                                aria-describedby="whatsapp-help whatsapp-error"
+                                class="form-field pl-12"
+                            >
+                        </div>
+                        <p id="whatsapp-help" class="mt-2 text-xs leading-5 text-slate-500">
+                            Informe seu número com DDD. Não precisa incluir o código do país.
+                        </p>
+                        <p id="whatsapp-error" class="mt-1 hidden text-xs text-red-600" role="alert">
+                            Informe um telefone brasileiro válido com DDD.
+                        </p>
+                    </div>
+
+                    <div>
+                        <label for="start-datetime" class="field-label">
+                            Data e horário desejados
+                        </label>
+                        <input
+                            type="datetime-local"
+                            id="start-datetime"
+                            name="start_datetime"
+                            required
+                            class="form-field"
+                        >
+                        <p class="mt-2 text-xs leading-5 text-slate-500">
+                            O horário será informado conforme o horário local do seu dispositivo.
+                        </p>
+                    </div>
+
+                    <div
+                        id="form-error"
+                        class="hidden rounded-xl border border-red-200 bg-red-50 p-3 text-sm leading-5 text-red-700"
+                        role="alert"
+                    ></div>
+
+                    <button
+                        type="submit"
+                        id="submit-button"
+                        class="submit-button flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-700 px-5 py-3.5 text-sm font-semibold text-white shadow-lg shadow-emerald-700/15 transition hover:bg-emerald-800 focus:outline-none focus:ring-4 focus:ring-emerald-700/20"
+                    >
+                        <span id="submit-label">Confirmar agendamento</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-4 w-4" aria-hidden="true">
+                            <path d="M5 12h14M13 6l6 6-6 6"/>
+                        </svg>
+                    </button>
+
+                    <p class="text-center text-xs leading-5 text-slate-400">
+                        Seus dados serão usados para organizar e confirmar seu atendimento.
+                    </p>
+                </form>
+
+                <div
+                    id="success-message"
+                    class="mt-6 hidden rounded-2xl border border-emerald-200 bg-emerald-50 p-5"
+                    role="status"
+                    aria-live="polite"
+                >
+                    <div class="flex items-start gap-3">
+                        <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-5 w-5" aria-hidden="true">
+                                <path d="m5 12 4 4L19 6"/>
+                            </svg>
+                        </span>
+                        <div>
+                            <h3 class="font-semibold text-emerald-900">
+                                Solicitação enviada!
+                            </h3>
+                            <p class="mt-1 text-sm leading-6 text-emerald-800">
+                                Seu agendamento foi registrado. Fique de olho no WhatsApp para receber a confirmação.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <footer class="py-7 text-center">
+            <p class="text-xs text-slate-400">
+                Agendamentos facilitados por
+                <span class="font-semibold text-slate-600">AvisanoZap</span>
+            </p>
+        </footer>
+    </main>
+
+    <script>
+        const professionalId = "{{ profile.id|escapejs }}";
+
+        const form = document.getElementById('schedule-form');
+        const whatsappInput = document.getElementById('client-whatsapp');
+        const whatsappError = document.getElementById('whatsapp-error');
+        const formError = document.getElementById('form-error');
+        const submitButton = document.getElementById('submit-button');
+        const submitLabel = document.getElementById('submit-label');
+        const successMessage = document.getElementById('success-message');
+        const datetimeInput = document.getElementById('start-datetime');
+
+        function formatBrazilianPhone(value) {
+            let digits = value.replace(/\D/g, '');
+
+            if (digits.startsWith('55') && (digits.length === 12 || digits.length === 13)) {
+                digits = digits.slice(2);
+            }
+
+            digits = digits.slice(0, 11);
+
+            if (digits.length <= 2) {
+                return digits ? `(${digits}` : '';
+            }
+
+            const areaCode = digits.slice(0, 2);
+            const phone = digits.slice(2);
+
+            if (phone.length <= 4) {
+                return `(${areaCode}) ${phone}`;
+            }
+
+            if (phone.length <= 8) {
+                return `(${areaCode}) ${phone.slice(0, 4)}-${phone.slice(4)}`;
+            }
+
+            return `(${areaCode}) ${phone.slice(0, 5)}-${phone.slice(5)}`;
+        }
+
+        function getBrazilianPhoneDigits(value) {
+            let digits = value.replace(/\D/g, '');
+
+            if (digits.startsWith('55') && (digits.length === 12 || digits.length === 13)) {
+                digits = digits.slice(2);
+            }
+
+            return digits;
+        }
+
+        function isValidBrazilianPhone(digits) {
+            if (!/^\d{10,11}$/.test(digits)) {
+                return false;
+            }
+
+            const areaCode = Number(digits.slice(0, 2));
+            const subscriber = digits.slice(2);
+
+            if (areaCode < 11 || areaCode > 99) {
+                return false;
+            }
+
+            if (subscriber.length === 11 && subscriber[0] !== '9') {
+                return false;
+            }
+
+            return true;
+        }
+
+        whatsappInput.addEventListener('input', () => {
+            const cursorAtEnd = whatsappInput.selectionStart === whatsappInput.value.length;
+            whatsappInput.value = formatBrazilianPhone(whatsappInput.value);
+
+            if (cursorAtEnd) {
+                whatsappInput.setSelectionRange(
+                    whatsappInput.value.length,
+                    whatsappInput.value.length
+                );
+            }
+
+            whatsappInput.setCustomValidity('');
+            whatsappError.classList.add('hidden');
+        });
+
+        function setMinimumDateTime() {
+            const now = new Date();
+            const localDateTime = new Date(
+                now.getTime() - now.getTimezoneOffset() * 60000
+            ).toISOString().slice(0, 16);
+
+            datetimeInput.min = localDateTime;
+        }
+
+        setMinimumDateTime();
+
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            formError.classList.add('hidden');
+            successMessage.classList.add('hidden');
+
+            const phoneDigits = getBrazilianPhoneDigits(whatsappInput.value);
+
+            if (!isValidBrazilianPhone(phoneDigits)) {
+                whatsappError.classList.remove('hidden');
+                whatsappInput.focus();
+                return;
+            }
+
+            if (new Date(datetimeInput.value) <= new Date()) {
+                formError.textContent = 'Escolha uma data e um horário futuros.';
+                formError.classList.remove('hidden');
+                return;
+            }
+
+            const payload = {
+                professional_id: professionalId,
+                service_id: document.getElementById('service-select').value,
+                client_name: document.getElementById('client-name').value.trim(),
+                client_whatsapp: phoneDigits,
+                start_datetime: new Date(datetimeInput.value).toISOString(),
+            };
+
+            submitButton.disabled = true;
+            submitLabel.textContent = 'Enviando agendamento...';
+
+            try {
+                const csrfToken = form.querySelector(
+                    '[name="csrfmiddlewaretoken"]'
+                ).value;
+
+                const response = await fetch('/api/appointments', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken,
+                    },
+                    body: JSON.stringify(payload),
+                });
+
+                if (!response.ok) {
+                    let message = 'Não foi possível realizar o agendamento. Confira os dados e tente novamente.';
+
+                    try {
+                        const data = await response.json();
+
+                        if (data.detail && typeof data.detail === 'string') {
+                            message = data.detail;
+                        }
+                    } catch {
+                        // Keep the default error message.
+                    }
+
+                    throw new Error(message);
+                }
+
+                form.reset();
+                setMinimumDateTime();
+                form.classList.add('hidden');
+                successMessage.classList.remove('hidden');
+            } catch (error) {
+                formError.textContent = error.message ||
+                    'Erro de conexão. Tente novamente em instantes.';
+                formError.classList.remove('hidden');
+            } finally {
+                submitButton.disabled = false;
+                submitLabel.textContent = 'Confirmar agendamento';
+            }
+        });
+    </script>
+</body>
+</html>

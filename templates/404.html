@@ -1,0 +1,56 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex">
+    <title>Página não encontrada | AvisanoZap</title>
+    <link rel="stylesheet" href="{% static 'landing/css/home.css' %}">
+    <style>
+        .error-page {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            text-align: center;
+        }
+
+        .error-content {
+            max-width: 520px;
+        }
+
+        .error-code {
+            margin: 0 0 16px;
+            color: #16845b;
+            font-size: clamp(4rem, 15vw, 7rem);
+            font-weight: 800;
+            line-height: 1;
+        }
+
+        .error-content h1 {
+            margin-bottom: 16px;
+        }
+
+        .error-content p {
+            margin-bottom: 28px;
+        }
+    </style>
+</head>
+<body>
+    <main class="error-page">
+        <div class="error-content">
+            <p class="error-code">404</p>
+            <h1>Ops! Não encontramos essa página.</h1>
+            <p>
+                O endereço pode estar incorreto ou a página não estar
+                mais disponível. Confira o link ou volte ao início.
+            </p>
+            <a class="button button-primary" href="/">
+                Voltar ao início
+            </a>
+        </div>
+    </main>
+</body>
+</html>
