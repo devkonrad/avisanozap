@@ -18,6 +18,20 @@ services:
       - db
       - redis
 
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+
   db:
     image: postgres:16-alpine
     restart: unless-stopped
@@ -73,9 +87,11 @@ services:
       - evolution_instances:/evolution/instances
     depends_on:
       - db
-      - redis
+      - redis    
 
 volumes:
   postgres_data:
   evolution_instances:
   staticfiles:
+  caddy_data:
+  caddy_config:
