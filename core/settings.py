@@ -3,11 +3,15 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = 'fi$d^a_u8j$eb-_##$v9*47_nvue_2q4r_in^7i_$m1khh(%8v'
+SECRET_KEY = os.environ["SECRET_KEY"]
 
-DEBUG = False
+DEBUG = os.getenv("DEBUG", "0").lower() in ("1", "true", "yes")
 
-ALLOWED_HOSTS = ['localhost','127.0.0.1']
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+    if host.strip()
+]
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -65,22 +69,42 @@ STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-# Configurações do Celery e Redis
-CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://redis:6379/0')
-CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'redis://redis:6379/0')
-CELERY_TIMEZONE = 'America/Sao_Paulo'
-CELERY_USE_TZ = True
-
-# Agendador de tarefas periódicas (Celery Beat)
-CELERY_BEAT_SCHEDULE = {
-    'process-whatsapp-reminders-every-minute': {
-        'task': 'appointments.tasks.process_pending_reminders',
-        'schedule': 60.0,  # Executa a cada 60 segundos
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
     },
 }
 
-# Configurações da Evolution API
-# Configurações da Evolution API
-EVOLUTION_API_URL = os.environ.get('EVOLUTION_API_URL', 'http://whatsapp_api:8080')
-EVOLUTION_API_KEY = os.environ.get('EVOLUTION_API_KEY', 'SUA_API_KEY_AQUI')
-EVOLUTION_INSTANCE_NAME = os.environ.get('EVOLUTION_INSTANCE_NAME', 'sua_instancia')
+# Celery and Redis settings
+CELERY_BROKER_URL = os.environ.get(
+    "CELERY_BROKER_URL",
+    "redis://redis:6379/0",
+)
+CELERY_RESULT_BACKEND = os.environ.get(
+    "CELERY_RESULT_BACKEND",
+    "redis://redis:6379/0",
+)
+CELERY_TIMEZONE = "America/Sao_Paulo"
+CELERY_USE_TZ = True
+
+# Celery Beat schedule
+CELERY_BEAT_SCHEDULE = {
+    "process-whatsapp-reminders-every-minute": {
+        "task": "appointments.tasks.process_pending_reminders",
+        "schedule": 60.0,
+    },
+}
+
+# Evolution API settings
+EVOLUTION_API_URL = os.environ.get(
+    "EVOLUTION_API_URL",
+    "http://whatsapp_api:8080",
+)
+EVOLUTION_API_KEY = os.environ["EVOLUTION_API_KEY"]
+EVOLUTION_INSTANCE_NAME = os.environ.get(
+    "EVOLUTION_INSTANCE_NAME",
+    "avisanozap",
+)
