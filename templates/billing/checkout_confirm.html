@@ -1,0 +1,80 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Confirmar contratação | AvisanoZap</title>
+    <link rel="stylesheet" href="{% static 'landing/css/home.css' %}">
+</head>
+<body>
+    <main class="pricing-section">
+        <div class="container">
+            <div class="pricing-card">
+                <div class="pricing-main">
+                    <span class="pricing-label">AVISANOZAP</span>
+
+                    <h1>Confirmar contratação</h1>
+                    <h2>{{ plan.name }}</h2>
+                    <p>{{ plan.description }}</p>
+
+                    <ul class="pricing-features">
+                        <li>
+                            <span aria-hidden="true">✓</span>
+                            Organização de agendamentos
+                        </li>
+                        <li>
+                            <span aria-hidden="true">✓</span>
+                            Cadastro de serviços e clientes
+                        </li>
+                        <li>
+                            <span aria-hidden="true">✓</span>
+                            Lembretes pelo WhatsApp
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="pricing-action">
+                    <span class="pricing-price">
+                        R$ {{ plan.amount|floatformat:2 }}
+                    </span>
+
+                    <span class="pricing-period">
+                        {% if plan.billing_type == "MONTHLY" %}
+                            Cobrança mensal recorrente.
+                        {% else %}
+                            Pagamento único para {{ plan.access_days }} dias de acesso.
+                        {% endif %}
+                    </span>
+
+                    <div class="pricing-payment">
+                        {{ plan.get_payment_method_display }}
+                    </div>
+
+                    <form method="post">
+                        {% csrf_token %}
+                        <button
+                            class="button button-primary button-full"
+                            type="submit"
+                        >
+                            Continuar para o pagamento
+                            <span aria-hidden="true">→</span>
+                        </button>
+                    </form>
+
+                    <p class="pricing-note">
+                        {% if plan.billing_type == "MONTHLY" %}
+                            Pagamento recorrente via cartão de crédito.
+                        {% else %}
+                            O acesso será liberado após a confirmação do Pix.
+                        {% endif %}
+                    </p>
+
+                    <a href="{% url 'home' %}">Voltar aos planos</a>
+                </div>
+            </div>
+        </div>
+    </main>
+</body>
+</html>

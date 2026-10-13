@@ -368,63 +368,94 @@
                     <span class="eyebrow">Comece com simplicidade</span>
                     <h2>Mais organização para o seu negócio.</h2>
                     <p>
-                        Estamos preparando uma forma simples e acessível
-                        de contratar o AvisanoZap.
+                        Escolha o plano que melhor combina com a sua rotina
+                        e tenha mais tranquilidade na gestão dos seus agendamentos.
                     </p>
                 </div>
 
-                <div class="pricing-card">
-                    <div class="pricing-main">
-                        <span class="pricing-label">AVISANOZAP</span>
-                        <h3>Plano para profissionais</h3>
+                {% if billing_plans %}
+                    <div class="pricing-grid">
+                        {% for plan in billing_plans %}
+                            <article class="pricing-card">
+                                <div class="pricing-main">
+                                    <span class="pricing-label">AVISANOZAP</span>
+                                    <h3>{{ plan.name }}</h3>
+
+                                    <p>{{ plan.description }}</p>
+
+                                    <ul class="pricing-features">
+                                        <li>
+                                            <span aria-hidden="true">✓</span>
+                                            Organização de agendamentos
+                                        </li>
+                                        <li>
+                                            <span aria-hidden="true">✓</span>
+                                            Cadastro de serviços e clientes
+                                        </li>
+                                        <li>
+                                            <span aria-hidden="true">✓</span>
+                                            Lembretes pelo WhatsApp
+                                        </li>
+                                    </ul>
+                                </div>
+
+                                <div class="pricing-action">
+                                    <span class="pricing-price">
+                                        R$ {{ plan.amount|floatformat:2 }}
+                                    </span>
+
+                                    <span class="pricing-period">
+                                        {% if plan.billing_type == "MONTHLY" %}
+                                            Por mês, com cobrança recorrente.
+                                        {% else %}
+                                            Pagamento único para
+                                            {{ plan.access_days }} dias de acesso.
+                                        {% endif %}
+                                    </span>
+
+                                    <div class="pricing-payment">
+                                        {{ plan.get_payment_method_display }}
+                                    </div>
+
+                                    <form
+                                        method="get"
+                                        action="{% url 'billing:checkout' plan.code %}"
+                                    >
+                                        <button
+                                            class="button button-primary button-full"
+                                            type="submit"
+                                        >
+                                            {% if plan.billing_type == "MONTHLY" %}
+                                                Assinar plano mensal
+                                            {% else %}
+                                                Contratar com Pix
+                                            {% endif %}
+                                            <span aria-hidden="true">→</span>
+                                        </button>
+                                    </form>
+
+                                    <p class="pricing-note">
+                                        {% if plan.billing_type == "MONTHLY" %}
+                                            Pagamento recorrente via cartão de crédito.
+                                        {% else %}
+                                            Acesso por {{ plan.access_days }} dias após
+                                            a confirmação do pagamento.
+                                        {% endif %}
+                                    </p>
+                                </div>
+                            </article>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="pricing-empty">
+                        <h3>Estamos preparando nossos planos.</h3>
                         <p>
-                            Uma solução para ajudar você a organizar seus
-                            agendamentos e simplificar os lembretes aos clientes.
-                        </p>
-
-                        <ul class="pricing-features">
-                            <li>
-                                <span aria-hidden="true">✓</span>
-                                Organização de agendamentos
-                            </li>
-                            <li>
-                                <span aria-hidden="true">✓</span>
-                                Cadastro de serviços e clientes
-                            </li>
-                            <li>
-                                <span aria-hidden="true">✓</span>
-                                Lembretes pelo WhatsApp
-                            </li>
-                        </ul>
-                    </div>
-
-                    <div class="pricing-action">
-                        <span class="pricing-price">Em breve</span>
-                        <span class="pricing-period">
-                            Planos e condições serão divulgados aqui.
-                        </span>
-
-                        {% if checkout_url %}
-                            <a
-                                class="button button-primary button-full"
-                                href="{{ checkout_url }}"
-                            >
-                                Quero contratar <span aria-hidden="true">→</span>
-                            </a>
-                        {% else %}
-                            <a
-                                class="button button-primary button-full"
-                                href="#contato"
-                            >
-                                Tenho interesse <span aria-hidden="true">→</span>
-                            </a>
-                        {% endif %}
-
-                        <p class="pricing-note">
-                            Sem compromisso. Conheça a proposta do produto.
+                            Em breve você poderá conhecer as opções de assinatura
+                            do AvisanoZap.
                         </p>
                     </div>
-                </div>
+                {% endif %}
+                
             </div>
         </section>
 

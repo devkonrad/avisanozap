@@ -21,6 +21,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'appointments',
+    'billing',
 ]
 
 MIDDLEWARE = [
@@ -65,6 +66,8 @@ DATABASES = {
     }
 }
 
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
@@ -108,3 +111,17 @@ EVOLUTION_INSTANCE_NAME = os.environ.get(
     "EVOLUTION_INSTANCE_NAME",
     "avisanozap",
 )
+
+# Asaas Integration
+ASAAS_BASE_URL = os.environ.get(
+    'ASAAS_BASE_URL',
+    'https://api-sandbox.asaas.com/v3',
+).rstrip('/')
+
+ASAAS_API_KEY = os.environ.get('ASAAS_API_KEY', '')
+ASAAS_WEBHOOK_TOKEN = os.environ.get('ASAAS_WEBHOOK_TOKEN', '')
+
+
+LOGIN_URL = "/accounts/login/"
+LOGIN_REDIRECT_URL = "/"
+LOGOUT_REDIRECT_URL = "/"
