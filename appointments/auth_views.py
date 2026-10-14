@@ -42,7 +42,7 @@ class SignUpView(FormView):
 class ProfessionalLoginView(LoginView):
     template_name = "registration/login.html"
     redirect_authenticated_user = True
-    next_page = "/"
+    next_page = "appointments_dashboard"
 
 
 class ProfessionalLogoutView(LogoutView):

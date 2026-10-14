@@ -1,0 +1,132 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meus dados | AvisanoZap</title>
+    <link rel="stylesheet" href="{% static 'appointments/css/dashboard.css' %}">
+</head>
+<body>
+    <div class="dashboard">
+        <header class="dashboard-header">
+            <div>
+                <a class="brand" href="{% url 'home' %}">AvisanoZap</a>
+                <p class="header-subtitle">Painel do profissional</p>
+            </div>
+
+            <div class="account-menu">
+                <button
+                    class="button button-secondary menu-toggle"
+                    type="button"
+                    aria-expanded="false"
+                    aria-controls="account-menu-items"
+                >
+                    <span aria-hidden="true">&#9776;</span>
+                    Menu
+                </button>
+
+                <nav class="account-menu-items" id="account-menu-items" hidden>
+                    <div class="account-menu-user">
+                        <strong>
+                            {{ request.user.get_full_name|default:request.user.username }}
+                        </strong>
+                        <span>{{ request.user.email }}</span>
+                    </div>
+                    <a href="{% url 'appointments_dashboard' %}">
+                        Agendamentos
+                    </a>
+                    <a href="{% url 'professional_profile' %}">
+                        Meus dados
+                    </a>
+                    <form method="post" action="{% url 'accounts:logout' %}">
+                        {% csrf_token %}
+                        <button class="menu-logout" type="submit">
+                            Sair da conta
+                        </button>
+                    </form>
+                </nav>
+            </div>
+        </header>
+
+        <main>
+            <section class="page-heading">
+                <div>
+                    <p class="eyebrow">MINHA CONTA</p>
+                    <h1>Meus dados</h1>
+                    <p class="page-description">
+                        Atualize seus dados pessoais e as informações
+                        da sua página de agendamento.
+                    </p>
+                </div>
+            </section>
+
+            <section class="filter-panel profile-panel">
+                <h2>Dados do profissional</h2>
+
+                <form method="post">
+                    {% csrf_token %}
+
+                    {% if form.non_field_errors %}
+                        <div class="form-errors">
+                            {{ form.non_field_errors }}
+                        </div>
+                    {% endif %}
+
+                    {% for field in form %}
+                        <div class="form-field profile-field">
+                            <label for="{{ field.id_for_label }}">
+                                {{ field.label }}
+                            </label>
+                            {{ field }}
+
+                            {% if field.help_text %}
+                                <small>{{ field.help_text }}</small>
+                            {% endif %}
+
+                            {% for error in field.errors %}
+                                <p class="field-error">{{ error }}</p>
+                            {% endfor %}
+                        </div>
+                    {% endfor %}
+
+                    <div class="profile-actions">
+                        <button class="button button-primary" type="submit">
+                            Salvar alterações
+                        </button>
+                        <a
+                            class="button button-secondary"
+                            href="{% url 'appointments_dashboard' %}"
+                        >
+                            Voltar aos agendamentos
+                        </a>
+                    </div>
+                </form>
+            </section>
+        </main>
+
+        <footer class="dashboard-footer">
+            <p>© {% now "Y" %} AvisanoZap. Gestão de agendamentos simplificada.</p>
+        </footer>
+    </div>
+
+    <script>
+        const menuToggle = document.querySelector(".menu-toggle");
+        const menuItems = document.querySelector(".account-menu-items");
+
+        menuToggle.addEventListener("click", () => {
+            const isExpanded = menuToggle.getAttribute("aria-expanded") === "true";
+
+            menuToggle.setAttribute("aria-expanded", String(!isExpanded));
+            menuItems.hidden = isExpanded;
+        });
+
+        document.addEventListener("click", (event) => {
+            if (!event.target.closest(".account-menu")) {
+                menuItems.hidden = true;
+                menuToggle.setAttribute("aria-expanded", "false");
+            }
+        });
+    </script>
+</body>
+</html>

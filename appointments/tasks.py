@@ -26,6 +26,13 @@ def send_appointment_notifications(appointment_id):
         )
         return
 
+    if appointment.status != "CONFIRMED":
+        logger.info(
+            "Appointment %s is not confirmed; notifications skipped.",
+            appointment_id,
+        )
+        return
+    
     service_name = (
         appointment.service.name if appointment.service else 'Atendimento'
     )

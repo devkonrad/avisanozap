@@ -1,0 +1,279 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agendamentos | AvisanoZap</title>
+    <link rel="stylesheet" href="{% static 'appointments/css/dashboard.css' %}">
+</head>
+<body>
+    <div class="dashboard">
+        <header class="dashboard-header">
+            <div>
+                <a class="brand" href="{% url 'home' %}">AvisanoZap</a>
+                <p class="header-subtitle">Painel do profissional</p>
+            </div>
+
+            <div class="account-menu">
+                <div class="account-summary">
+                    <span class="account-summary-label">Conectado como</span>
+                    <strong>
+                        {{ request.user.get_full_name|default:request.user.username }}
+                    </strong>
+                    <span>{{ request.user.email }}</span>
+                </div>
+
+                <button
+                    class="button button-secondary menu-toggle"
+                    type="button"
+                    aria-expanded="false"
+                    aria-controls="account-menu-items"
+                >
+                    <span aria-hidden="true">&#9776;</span>
+                    Menu
+                </button>
+
+                <nav class="account-menu-items" id="account-menu-items" hidden>
+                    <div class="account-menu-user">
+                        <strong>
+                            {{ request.user.get_full_name|default:request.user.username }}
+                        </strong>
+                        <span>{{ request.user.email }}</span>
+                    </div>
+
+                    <a href="{% url 'appointments_dashboard' %}">
+                        Agendamentos
+                    </a>
+                    <a href="{% url 'professional_profile' %}">
+                        Meus dados
+                    </a>
+
+                    <form method="post" action="{% url 'accounts:logout' %}">
+                        {% csrf_token %}
+                        <button class="menu-logout" type="submit">
+                            Sair da conta
+                        </button>
+                    </form>
+                </nav>
+            </div>
+        </header>
+
+        <main>
+            <section class="page-heading">
+                <div>
+                    <p class="eyebrow">GESTÃO</p>
+                    <h1>Seus agendamentos</h1>
+                    <p class="page-description">
+                        Consulte e acompanhe os agendamentos dos seus clientes.
+                    </p>
+                </div>
+            </section>
+
+            <section class="filter-panel">
+                <h2>Filtrar agendamentos</h2>
+
+                <form method="get" action="{% url 'appointments_dashboard' %}">
+                    <div class="filter-grid">
+                        <div class="form-field">
+                            <label for="client_name">Nome do cliente</label>
+                            <input
+                                type="text"
+                                id="client_name"
+                                name="client_name"
+                                value="{{ client_name }}"
+                                placeholder="Buscar por nome"
+                            >
+                        </div>
+
+                        <div class="form-field">
+                            <label for="date_from">Data inicial</label>
+                            <input
+                                type="date"
+                                id="date_from"
+                                name="date_from"
+                                value="{{ date_from }}"
+                            >
+                        </div>
+
+                        <div class="form-field">
+                            <label for="date_to">Data final</label>
+                            <input
+                                type="date"
+                                id="date_to"
+                                name="date_to"
+                                value="{{ date_to }}"
+                            >
+                        </div>
+
+                        <div class="filter-actions">
+                            <button class="button button-primary" type="submit">
+                                Filtrar
+                            </button>
+                            <a
+                                class="button button-secondary"
+                                href="{% url 'appointments_dashboard' %}"
+                            >
+                                Limpar
+                            </a>
+                        </div>
+                    </div>
+                </form>
+            </section>
+
+            <section class="appointments-section">
+                <div class="section-heading">
+                    <h2>Lista de agendamentos</h2>
+                    <span class="result-count">
+                        {{ page_obj.paginator.count }}
+                        {% if page_obj.paginator.count == 1 %}
+                            agendamento
+                        {% else %}
+                            agendamentos
+                        {% endif %}
+                    </span>
+                </div>
+
+                {% if page_obj.object_list %}
+                    <div class="appointments-list">
+                        {% for appointment in page_obj %}
+                            <article class="appointment-card">
+                                <div class="appointment-main">
+                                    <div class="appointment-date">
+                                        <span class="date-day">
+                                            {{ appointment.start_datetime|date:"d" }}
+                                        </span>
+                                        <span class="date-month">
+                                            {{ appointment.start_datetime|date:"M" }}
+                                        </span>
+                                    </div>
+
+                                    <div class="appointment-info">
+                                        <h3>{{ appointment.client_name }}</h3>
+                                        <p class="appointment-time">
+                                            {{ appointment.start_datetime|date:"d/m/Y" }}
+                                            às {{ appointment.start_datetime|date:"H:i" }}
+                                        </p>
+                                        <p class="appointment-service">
+                                            {{ appointment.service }}
+                                        </p>
+                                        <p class="appointment-whatsapp">
+                                            WhatsApp: {{ appointment.client_whatsapp }}
+                                        </p>
+                                    </div>
+                                </div>                                
+                                <div class="appointment-meta">
+                                    {% if appointment.status == "CONFIRMED" %}
+                                        <span class="status-badge status-confirmed">
+                                            Confirmado
+                                        </span>
+
+                                        <form
+                                            method="post"
+                                            action="{% url 'cancel_appointment' appointment.id %}"
+                                            class="appointment-actions"
+                                            onsubmit="return confirm('Tem certeza de que deseja cancelar este agendamento?');"
+                                        >
+                                            {% csrf_token %}
+                                            <button
+                                                type="submit"
+                                                class="button button-danger"
+                                            >
+                                                Cancelar
+                                            </button>
+                                        </form>
+                                    {% elif appointment.status == "CANCELED" %}
+                                        <span class="status-badge status-canceled">
+                                            Cancelado
+                                        </span>
+                                    {% elif appointment.status == "COMPLETED" %}
+                                        <span class="status-badge status-completed">
+                                            Concluído
+                                        </span>
+                                    {% else %}
+                                        <span class="status-badge status-default">
+                                            {{ appointment.get_status_display }}
+                                        </span>
+                                    {% endif %}
+                                </div>
+                            </article>
+                        {% endfor %}
+                    </div>
+
+                    {% if page_obj.has_other_pages %}
+                        <nav class="pagination" aria-label="Paginação dos agendamentos">
+                            <div class="pagination-info">
+                                Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+                            </div>
+
+                            <div class="pagination-actions">
+                                {% if page_obj.has_previous %}
+                                    <a
+                                        class="button button-secondary"
+                                        href="?page={{ page_obj.previous_page_number }}&client_name={{ client_name|urlencode }}&date_from={{ date_from|urlencode }}&date_to={{ date_to|urlencode }}"
+                                    >
+                                        Anterior
+                                    </a>
+                                {% endif %}
+
+                                {% if page_obj.has_next %}
+                                    <a
+                                        class="button button-secondary"
+                                        href="?page={{ page_obj.next_page_number }}&client_name={{ client_name|urlencode }}&date_from={{ date_from|urlencode }}&date_to={{ date_to|urlencode }}"
+                                    >
+                                        Próxima
+                                    </a>
+                                {% endif %}
+                            </div>
+                        </nav>
+                    {% endif %}
+                {% else %}
+                    <div class="empty-state">
+                        <div class="empty-state-icon" aria-hidden="true">▦</div>
+                        <h3>Nenhum agendamento encontrado</h3>
+                        <p>
+                            Não encontramos agendamentos para os filtros informados.
+                            Tente alterar os critérios de busca.
+                        </p>
+                        <a
+                            class="button button-primary"
+                            href="{% url 'appointments_dashboard' %}"
+                        >
+                            Ver todos os agendamentos
+                        </a>
+                    </div>
+                {% endif %}
+            </section>
+        </main>
+
+        <footer class="dashboard-footer">
+            <p>© {% now "Y" %} AvisanoZap. Gestão de agendamentos simplificada.</p>
+        </footer>
+    </div>
+
+    <script>
+        const menuToggle = document.querySelector(".menu-toggle");
+        const menuItems = document.querySelector(".account-menu-items");
+
+        if (menuToggle && menuItems) {
+            menuToggle.addEventListener("click", () => {
+                const isExpanded =
+                    menuToggle.getAttribute("aria-expanded") === "true";
+
+                menuToggle.setAttribute(
+                    "aria-expanded",
+                    String(!isExpanded),
+                );
+                menuItems.hidden = isExpanded;
+            });
+
+            document.addEventListener("click", (event) => {
+                if (!event.target.closest(".account-menu")) {
+                    menuItems.hidden = true;
+                    menuToggle.setAttribute("aria-expanded", "false");
+                }
+            });
+        }
+    </script>
+</body>
+</html>
