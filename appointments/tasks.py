@@ -1,14 +1,12 @@
-
 import logging
 
 from celery import shared_task
 from django.utils import timezone
 
 from .models import Appointment, WhatsAppReminder
-from .services import send_whatsapp_message, send_whatsapp_poll
+from .services import send_whatsapp_message
 
 logger = logging.getLogger(__name__)
-
 
 
 @shared_task
@@ -55,38 +53,20 @@ def send_appointment_notifications(appointment_id):
     ).strftime("%d/%m/%Y às %H:%M")
 
     if appointment.status == Appointment.STATUS_PENDING_CONFIRMATION:
-        introduction = (
+        client_message = (
             f"Olá, {appointment.client_name}! 👋\n\n"
             f"Seu agendamento de *{service_name}* com "
             f"*{professional_name}* está reservado para "
             f"*{date_formatted}*.\n\n"
-            "Por favor, selecione uma opção na enquete abaixo "
-            "para confirmar ou cancelar."
+            "Para confirmar, responda *SIM*.\n"
+            "Para cancelar, responda *NÃO*.\n\n"
+            "Aguardamos sua resposta!"
         )
 
-        sent = send_whatsapp_message(
+        send_whatsapp_message(
             number=appointment.client_whatsapp,
-            text=introduction,
+            text=client_message,
         )
-
-        if sent:
-            poll_sent = send_whatsapp_poll(
-                number=appointment.client_whatsapp,
-                question="Você confirma este agendamento?",
-                options=[
-                    "SIM - Confirmar agendamento",
-                    "NÃO - Cancelar agendamento",
-                ],
-            )
-
-            if not poll_sent:
-                send_whatsapp_message(
-                    number=appointment.client_whatsapp,
-                    text=(
-                        "Não foi possível enviar a enquete. "
-                        "Responda SIM para confirmar ou NÃO para cancelar."
-                    ),
-                )
 
         professional_message = (
             "📅 *Novo agendamento aguardando confirmação!*\n\n"
@@ -132,14 +112,14 @@ def process_pending_reminders():
     now = timezone.now()
     pending_reminders = (
         WhatsAppReminder.objects.filter(
-            status='PENDING',
+            status="PENDING",
             scheduled_for__lte=now,
-            appointment__status='CONFIRMED',
+            appointment__status="CONFIRMED",
         )
         .select_related(
-            'appointment',
-            'appointment__service',
-            'appointment__professional',
+            "appointment",
+            "appointment__service",
+            "appointment__professional",
         )
     )
 
@@ -150,18 +130,18 @@ def process_pending_reminders():
             service_name = (
                 appointment.service.name
                 if appointment.service
-                else 'Atendimento'
+                else "Atendimento"
             )
             date_formatted = timezone.localtime(
                 appointment.start_datetime
-            ).strftime('%d/%m/%Y às %H:%M')
+            ).strftime("%d/%m/%Y às %H:%M")
 
             message = (
-                f'Olá, {appointment.client_name}! 👋\n\n'
-                f'Passando para lembrar do seu agendamento de '
-                f'*{service_name}* para *{date_formatted}*.\n\n'
-                'Caso precise reagendar ou desmarcar, entre em '
-                'contato conosco.'
+                f"Olá, {appointment.client_name}! 👋\n\n"
+                f"Passando para lembrar do seu agendamento de "
+                f"*{service_name}* para *{date_formatted}*.\n\n"
+                "Caso precise reagendar ou desmarcar, entre em "
+                "contato conosco."
             )
 
             success = send_whatsapp_message(
@@ -170,15 +150,15 @@ def process_pending_reminders():
             )
 
             if success:
-                reminder.status = 'SENT'
+                reminder.status = "SENT"
                 reminder.sent_at = timezone.now()
             else:
-                reminder.status = 'FAILED'
+                reminder.status = "FAILED"
 
-            reminder.save(update_fields=['status', 'sent_at'])
+            reminder.save(update_fields=["status", "sent_at"])
 
         except Exception:
             logger.exception(
-                'Failed to process reminder %s.',
+                "Failed to process reminder %s.",
                 reminder.id,
             )
