@@ -5,6 +5,7 @@ from appointments.api import api
 from appointments.views import (
     appointments_dashboard_view,
     cancel_appointment_view,
+    evolution_webhook_view,
     professional_profile_view,
     public_schedule_view,
 )
@@ -30,6 +31,11 @@ urlpatterns = [
         "dashboard/profile/",
         professional_profile_view,
         name="professional_profile",
+    ),
+    path(
+        "api/webhooks/evolution/",
+        evolution_webhook_view,
+        name="evolution_webhook",
     ),
     path("<slug:slug>/", public_schedule_view, name="public_schedule"),
 ]

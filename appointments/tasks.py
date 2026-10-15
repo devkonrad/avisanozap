@@ -5,9 +5,10 @@ from celery import shared_task
 from django.utils import timezone
 
 from .models import Appointment, WhatsAppReminder
-from .services import send_whatsapp_message
+from .services import send_whatsapp_message, send_whatsapp_poll
 
 logger = logging.getLogger(__name__)
+
 
 
 @shared_task
@@ -15,83 +16,112 @@ def send_appointment_notifications(appointment_id):
     """Notify the client and professional about a new appointment."""
     try:
         appointment = Appointment.objects.select_related(
-            'service',
-            'professional',
-            'professional__user',
+            "service",
+            "professional",
+            "professional__user",
         ).get(id=appointment_id)
     except Appointment.DoesNotExist:
         logger.warning(
-            'Appointment %s not found; notifications skipped.',
+            "Appointment %s not found; notifications skipped.",
             appointment_id,
         )
         return
 
-    if appointment.status != "CONFIRMED":
+    if appointment.status not in (
+        Appointment.STATUS_CONFIRMED,
+        Appointment.STATUS_PENDING_CONFIRMATION,
+    ):
         logger.info(
-            "Appointment %s is not confirmed; notifications skipped.",
+            "Appointment %s has status %s; notifications skipped.",
             appointment_id,
+            appointment.status,
         )
         return
-    
+
     service_name = (
-        appointment.service.name if appointment.service else 'Atendimento'
+        appointment.service.name if appointment.service else "Atendimento"
     )
     professional = appointment.professional
     professional_name = (
-        professional.user.username
+        (
+            professional.user.get_full_name()
+            or professional.user.username
+        )
         if professional.user_id
         else professional.slug
     )
     date_formatted = timezone.localtime(
         appointment.start_datetime
-    ).strftime('%d/%m/%Y às %H:%M')
+    ).strftime("%d/%m/%Y às %H:%M")
 
-    messages = [
-        (
-            appointment.client_whatsapp,
-            (
-                f'Olá, {appointment.client_name}! 👋\n\n'
-                f'O seu agendamento de *{service_name}* com '
-                f'*{professional_name}* foi confirmado para '
-                f'*{date_formatted}*!\n\n'
-                'Obrigado por usar o AvisanoZap.'
-            ),
-            'client',
-        ),
-    ]
-
-    if professional.whatsapp_number:
-        messages.append(
-            (
-                professional.whatsapp_number,
-                (
-                    '📅 *Novo agendamento recebido!*\n\n'
-                    f'👤 *Cliente:* {appointment.client_name}\n'
-                    f'📱 *WhatsApp:* {appointment.client_whatsapp}\n'
-                    f'🛠 *Serviço:* {service_name}\n'
-                    f'⏰ *Data/Hora:* {date_formatted}'
-                ),
-                'professional',
-            )
+    if appointment.status == Appointment.STATUS_PENDING_CONFIRMATION:
+        introduction = (
+            f"Olá, {appointment.client_name}! 👋\n\n"
+            f"Seu agendamento de *{service_name}* com "
+            f"*{professional_name}* está reservado para "
+            f"*{date_formatted}*.\n\n"
+            "Por favor, selecione uma opção na enquete abaixo "
+            "para confirmar ou cancelar."
         )
 
-    for number, message, recipient in messages:
-        try:
-            success = send_whatsapp_message(number=number, text=message)
-        except Exception:
-            logger.exception(
-                'Unexpected error sending appointment notification '
-                'to %s for appointment %s.',
-                recipient,
-                appointment_id,
-            )
-            continue
+        sent = send_whatsapp_message(
+            number=appointment.client_whatsapp,
+            text=introduction,
+        )
 
+        if sent:
+            poll_sent = send_whatsapp_poll(
+                number=appointment.client_whatsapp,
+                question="Você confirma este agendamento?",
+                options=[
+                    "SIM - Confirmar agendamento",
+                    "NÃO - Cancelar agendamento",
+                ],
+            )
+
+            if not poll_sent:
+                send_whatsapp_message(
+                    number=appointment.client_whatsapp,
+                    text=(
+                        "Não foi possível enviar a enquete. "
+                        "Responda SIM para confirmar ou NÃO para cancelar."
+                    ),
+                )
+
+        professional_message = (
+            "📅 *Novo agendamento aguardando confirmação!*\n\n"
+            f"👤 *Cliente:* {appointment.client_name}\n"
+            f"🛠 *Serviço:* {service_name}\n"
+            f"⏰ *Data/Hora:* {date_formatted}\n\n"
+            "Aguardando resposta do cliente."
+        )
+    else:
+        send_whatsapp_message(
+            number=appointment.client_whatsapp,
+            text=(
+                f"Olá, {appointment.client_name}! 👋\n\n"
+                f"Seu agendamento de *{service_name}* com "
+                f"*{professional_name}* foi confirmado para "
+                f"*{date_formatted}*.\n\n"
+                "Obrigado por usar o AvisanoZap."
+            ),
+        )
+
+        professional_message = (
+            "✅ *Agendamento confirmado!*\n\n"
+            f"👤 *Cliente:* {appointment.client_name}\n"
+            f"🛠 *Serviço:* {service_name}\n"
+            f"⏰ *Data/Hora:* {date_formatted}"
+        )
+
+    if professional.whatsapp_number:
+        success = send_whatsapp_message(
+            number=professional.whatsapp_number,
+            text=professional_message,
+        )
         if not success:
             logger.error(
-                'Failed to send appointment notification to %s '
-                'for appointment %s.',
-                recipient,
+                "Failed to notify professional for appointment %s.",
                 appointment_id,
             )
 

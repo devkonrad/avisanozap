@@ -74,7 +74,7 @@ def create_appointment(request, payload: AppointmentCreateSchema):
             client_whatsapp=client_whatsapp,
             start_datetime=payload.start_datetime,
             end_datetime=end_datetime,
-            status='CONFIRMED',
+            status=Appointment.STATUS_PENDING_CONFIRMATION,
         )
 
         reminder_time = appointment.start_datetime - timedelta(
@@ -85,8 +85,8 @@ def create_appointment(request, payload: AppointmentCreateSchema):
             WhatsAppReminder.objects.create(
                 appointment=appointment,
                 scheduled_for=reminder_time,
-                reminder_type='24H',
-                status='PENDING',
+                reminder_type="24H",
+                status="PENDING",
             )
 
         transaction.on_commit(

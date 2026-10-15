@@ -1,3 +1,11 @@
+import json
+import secrets
+
+from django.db.models import Q
+from django.conf import settings
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db import transaction
@@ -10,7 +18,7 @@ from .models import Appointment, ProfessionalProfile, WhatsAppReminder
 import logging
 from django.utils import timezone
 
-from .services import send_whatsapp_message
+from .services import normalize_brazilian_phone, send_whatsapp_message
 
 from .forms import ProfessionalProfileUpdateForm
 
@@ -74,6 +82,7 @@ def appointments_dashboard_view(request):
         "appointments/dashboard.html",
         context,
     )
+
 
 @login_required
 @require_POST
@@ -146,7 +155,6 @@ def cancel_appointment_view(request, appointment_id):
     return redirect("appointments_dashboard")
 
 
-
 @login_required
 def professional_profile_view(request):
     profile = get_object_or_404(
@@ -177,3 +185,142 @@ def professional_profile_view(request):
             "form": form,
         },
     )
+
+
+@csrf_exempt
+@require_POST
+def evolution_webhook_view(request):
+    """Process appointment confirmation replies from Evolution API."""
+    expected_token = settings.EVOLUTION_WEBHOOK_TOKEN
+    provided_token = request.headers.get("X-Webhook-Token", "")
+
+    if not secrets.compare_digest(provided_token, expected_token):
+        return JsonResponse(
+            {"detail": "Invalid webhook token."},
+            status=401,
+        )
+
+    try:
+        payload = json.loads(request.body)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse(
+            {"detail": "Invalid JSON payload."},
+            status=400,
+        )
+
+    if not isinstance(payload, dict):
+        return JsonResponse(
+            {"detail": "Expected a JSON object."},
+            status=400,
+        )
+
+    if payload.get("event", "").lower() != "messages.upsert":
+        return JsonResponse({"received": True})
+
+    data = payload.get("data")
+    if not isinstance(data, dict):
+        return JsonResponse({"received": True})
+
+    key = data.get("key")
+    message = data.get("message")
+
+    if not isinstance(key, dict) or not isinstance(message, dict):
+        return JsonResponse({"received": True})
+
+    remote_jid = key.get("remoteJid", "")
+    if not isinstance(remote_jid, str):
+        return JsonResponse({"received": True})
+
+    raw_phone = remote_jid.split("@", 1)[0].split(":", 1)[0]
+
+    try:
+        phone = normalize_brazilian_phone(raw_phone)
+    except ValueError:
+        logger.warning(
+            "Ignoring webhook with invalid Brazilian phone number."
+        )
+        return JsonResponse({"received": True})
+
+    logger.info("Evolution webhook phone: %s", phone)
+
+    text = message.get("conversation", "")
+    if not isinstance(text, str):
+        return JsonResponse({"received": True})
+
+    answer = text.strip().upper()
+
+    logger.info("Evolution webhook answer: %s", answer)
+    
+    if answer not in {"SIM", "NÃO", "NAO"}:
+        return JsonResponse({"received": True})
+
+    legacy_phone = f"{phone[:4]}{phone[5:]}" if len(phone) == 13 else phone
+
+    appointments = Appointment.objects.filter(
+        Q(client_whatsapp=phone) | Q(client_whatsapp=legacy_phone),
+        status=Appointment.STATUS_PENDING_CONFIRMATION,
+    )
+
+    if appointments.count() != 1:
+        logger.info(
+            "Confirmation reply not processed: "
+            "found %s pending appointments.",
+            appointments.count(),
+        )
+        return JsonResponse({"received": True})
+
+    appointment = appointments.first()
+
+    appointment.status = (
+        Appointment.STATUS_CONFIRMED
+        if answer.upper() == "SIM"
+        else Appointment.STATUS_CANCELED
+    )
+    appointment.save(update_fields=["status"])
+
+    
+    if answer.upper() == "SIM":
+        service_name = (
+            appointment.service.name
+            if appointment.service
+            else "Serviço não informado"
+        )
+
+        professional = appointment.professional
+        professional_name = (
+            getattr(professional, "name", None)
+            or getattr(professional, "slug", None)
+            or "PROFISSIONAL"
+        ).replace("-", "").upper()
+
+        date_formatted = timezone.localtime(
+            appointment.start_datetime
+        ).strftime("%d/%m/%Y às %H:%M")
+
+        send_whatsapp_message(
+            number=appointment.client_whatsapp,
+            text=(
+                f"Olá, {appointment.client_name}! 😊\n\n"
+                f"Seu agendamento de *{service_name}* com "
+                f"*{professional_name}* está confirmado para "
+                f"*{date_formatted}*.\n\n"
+                "Obrigado por usar o AvisanoZap!"
+            ),
+        )
+
+        send_whatsapp_message(
+            number=appointment.professional.whatsapp_number,
+            text=(
+                "✅ *Agendamento confirmado!*\n\n"
+                f"O cliente *{appointment.client_name}* confirmou "
+                f"o agendamento de *{service_name}* para "
+                f"*{date_formatted}*."
+            ),
+        )
+
+    logger.info(
+        "Appointment %s status updated to %s.",
+        appointment.id,
+        appointment.status,
+    )
+    return JsonResponse({"received": True})

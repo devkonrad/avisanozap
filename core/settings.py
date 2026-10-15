@@ -113,6 +113,7 @@ EVOLUTION_API_URL = os.environ.get(
     "http://whatsapp_api:8080",
 )
 EVOLUTION_API_KEY = os.environ["EVOLUTION_API_KEY"]
+EVOLUTION_WEBHOOK_TOKEN = os.environ["EVOLUTION_WEBHOOK_TOKEN"]
 EVOLUTION_INSTANCE_NAME = os.environ.get(
     "EVOLUTION_INSTANCE_NAME",
     "avisanozap",
