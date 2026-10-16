@@ -103,28 +103,23 @@ def create_pix_checkout(subscription, plan, callback_url, payer_email):
 
     payload = {
         "type": "online",
-        "processing_mode": "manual",
-        "capture_mode": "automatic_async",
+        "processing_mode": "automatic",
         "total_amount": amount_str,
         "external_reference": str(subscription.id),
         "description": plan.name,
         "payer": {
             "email": payer_email,
         },
-        "items": [
-            {
-                "title": plan.name,
-                "description": plan.description or plan.name,
-                "quantity": 1,
-                "unit_price": amount_str,
-            }
-        ],
-        "config": {
-            "online": {
-                "success_url": callback_url,
-                "failure_url": callback_url,
-                "pending_url": callback_url,
-            },
+        "transactions": {
+            "payments": [
+                {
+                    "amount": amount_str,
+                    "payment_method": {
+                        "id": "pix",
+                        "type": "bank_transfer",
+                    },
+                }
+            ],
         },
     }
 
@@ -136,11 +131,22 @@ def create_pix_checkout(subscription, plan, callback_url, payer_email):
     )
 
     order_id = data.get("id")
-    checkout_url = data.get("checkout_url")
+    payments = (
+        data.get("transactions", {})
+        .get("payments", [])
+    )
+
+    payment_method = (
+        payments[0].get("payment_method", {})
+        if payments
+        else {}
+    )
+
+    checkout_url = payment_method.get("ticket_url")
 
     if not order_id or not checkout_url:
         raise MercadoPagoError(
-            "Mercado Pago did not return an order ID and checkout URL."
+            "Mercado Pago did not return the Pix payment URL."
         )
 
     return {
