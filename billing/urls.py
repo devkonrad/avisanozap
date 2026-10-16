@@ -10,4 +10,9 @@ urlpatterns = [
         views.checkout,
         name="checkout",
     ),
+    path(
+        "webhooks/mercado-pago/",
+        views.mercado_pago_webhook,
+        name="mercado_pago_webhook",
+    ),
 ]

@@ -4,10 +4,10 @@ from .models import (
     AsaasWebhookEvent,
     BillingSettings,
     BillingPlan,
+    MercadoPagoWebhookEvent,
     Payment,
     Subscription,
 )
-
 
 @admin.register(Subscription)
 class SubscriptionAdmin(admin.ModelAdmin):
@@ -16,14 +16,16 @@ class SubscriptionAdmin(admin.ModelAdmin):
         'plan',
         'status',
         'amount',
+        'provider',
         'started_at',
         'expires_at',
     )
-    list_filter = ('plan', 'status')
+    list_filter = ('plan', 'status', 'provider')
     search_fields = (
         'professional__user__username',
-        'asaas_customer_id',
-        'asaas_subscription_id',
+        'provider_customer_id',
+        'provider_subscription_id',
+        'provider_checkout_id',
     )
     readonly_fields = ('created_at', 'updated_at')
 
@@ -34,17 +36,21 @@ class PaymentAdmin(admin.ModelAdmin):
         'subscription',
         'amount',
         'status',
+        'provider',
         'due_date',
         'paid_at',
     )
-    list_filter = ('status',)
-    search_fields = ('asaas_payment_id',)
+    list_filter = ('status', 'provider')
+    search_fields = ('provider_payment_id',)
     readonly_fields = ('created_at', 'updated_at')
 
 
 @admin.register(BillingSettings)
 class BillingSettingsAdmin(admin.ModelAdmin):
-    list_display = ('reminder_business_days',)
+    list_display = (
+        'checkout_provider',
+        'reminder_business_days',
+    )
 
     def has_add_permission(self, request):
         if BillingSettings.objects.exists():
@@ -100,3 +106,31 @@ class BillingPlanAdmin(admin.ModelAdmin):
     ordering = ('sort_order', 'name')
     readonly_fields = ('created_at', 'updated_at')
     prepopulated_fields = {'code': ('name',)}
+
+
+@admin.register(MercadoPagoWebhookEvent)
+class MercadoPagoWebhookEventAdmin(admin.ModelAdmin):
+    list_display = (
+        'event_id',
+        'event_type',
+        'status',
+        'received_at',
+        'processed_at',
+    )
+    list_filter = ('status', 'event_type')
+    search_fields = ('event_id', 'event_type')
+    readonly_fields = (
+        'event_id',
+        'event_type',
+        'payload',
+        'status',
+        'received_at',
+        'processed_at',
+        'error_message',
+    )
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False

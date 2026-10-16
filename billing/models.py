@@ -4,6 +4,14 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.db.models import Q
 
+PROVIDER_ASAAS = "ASAAS"
+PROVIDER_MERCADO_PAGO = "MERCADO_PAGO"
+
+PROVIDER_CHOICES = [
+    (PROVIDER_ASAAS, "Asaas"),
+    (PROVIDER_MERCADO_PAGO, "Mercado Pago"),
+]
+
 class BillingPlan(models.Model):
     TYPE_MONTHLY = 'MONTHLY'
     TYPE_ONE_TIME = 'ONE_TIME'
@@ -110,13 +118,27 @@ class Subscription(models.Model):
         default=STATUS_PENDING,
     )
     amount = models.DecimalField(max_digits=8, decimal_places=2)
-    asaas_customer_id = models.CharField(max_length=100, blank=True)
-    asaas_subscription_id = models.CharField(
+
+    provider = models.CharField(
+        max_length=20,
+        choices=PROVIDER_CHOICES,
+        default=PROVIDER_ASAAS,
+    )
+    provider_customer_id = models.CharField(
+        max_length=100,
+        blank=True,
+    )
+    provider_subscription_id = models.CharField(
         max_length=100,
         null=True,
         blank=True,
-        unique=True,
     )
+    provider_checkout_id = models.CharField(
+        max_length=100,
+        null=True,
+        blank=True,
+    )
+    provider_checkout_url = models.URLField(blank=True)
 
     billing_plan = models.ForeignKey(
         BillingPlan,
@@ -125,13 +147,6 @@ class Subscription(models.Model):
         null=True,
         blank=True,
     )
-    asaas_checkout_id = models.CharField(
-        max_length=100,
-        null=True,
-        blank=True,
-        unique=True,
-    )
-    asaas_checkout_url = models.URLField(blank=True)
 
     started_at = models.DateTimeField(null=True, blank=True)
     expires_at = models.DateTimeField(null=True, blank=True)
@@ -145,6 +160,22 @@ class Subscription(models.Model):
                 fields=['professional'],
                 condition=Q(status__in=['PENDING', 'ACTIVE']),
                 name='unique_open_subscription_per_professional',
+            ),
+            models.UniqueConstraint(
+                fields=["provider", "provider_subscription_id"],
+                condition=(
+                    Q(provider_subscription_id__isnull=False)
+                    & ~Q(provider_subscription_id="")
+                ),
+                name="unique_provider_subscription_id",
+            ),
+            models.UniqueConstraint(
+                fields=["provider", "provider_checkout_id"],
+                condition=(
+                    Q(provider_checkout_id__isnull=False)
+                    & ~Q(provider_checkout_id="")
+                ),
+                name="unique_provider_checkout_id",
             ),
         ]
 
@@ -184,11 +215,15 @@ class Payment(models.Model):
         on_delete=models.PROTECT,
         related_name='payments',
     )
-    asaas_payment_id = models.CharField(
+    provider = models.CharField(
+        max_length=20,
+        choices=PROVIDER_CHOICES,
+        default=PROVIDER_ASAAS,
+    )
+    provider_payment_id = models.CharField(
         max_length=100,
         null=True,
         blank=True,
-        unique=True,
     )
     amount = models.DecimalField(max_digits=8, decimal_places=2)
     status = models.CharField(
@@ -202,7 +237,17 @@ class Payment(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = 'appointments_payment'
+        db_table = "appointments_payment"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["provider", "provider_payment_id"],
+                condition=(
+                    Q(provider_payment_id__isnull=False)
+                    & ~Q(provider_payment_id="")
+                ),
+                name="unique_provider_payment_id",
+            ),
+        ]
 
     def __str__(self):
         return (
@@ -212,6 +257,16 @@ class Payment(models.Model):
 
 
 class BillingSettings(models.Model):
+    checkout_provider = models.CharField(
+        max_length=20,
+        choices=PROVIDER_CHOICES,
+        default=PROVIDER_ASAAS,
+        verbose_name="Provedor padrão de checkout",
+        help_text=(
+            "Provedor utilizado nas novas contratações. "
+            "Assinaturas existentes mantêm seu provedor original."
+        ),
+    )
     reminder_business_days = models.PositiveSmallIntegerField(
         default=3,
         validators=[
@@ -280,6 +335,41 @@ class AsaasWebhookEvent(models.Model):
         ordering = ['-received_at']
         verbose_name = 'Evento de webhook Asaas'
         verbose_name_plural = 'Eventos de webhook Asaas'
+
+    def __str__(self):
+        return f'{self.event_type} - {self.event_id}'
+
+
+class MercadoPagoWebhookEvent(models.Model):
+    STATUS_RECEIVED = 'RECEIVED'
+    STATUS_PROCESSING = 'PROCESSING'
+    STATUS_PROCESSED = 'PROCESSED'
+    STATUS_FAILED = 'FAILED'
+
+    STATUS_CHOICES = [
+        (STATUS_RECEIVED, 'Recebido'),
+        (STATUS_PROCESSING, 'Em processamento'),
+        (STATUS_PROCESSED, 'Processado'),
+        (STATUS_FAILED, 'Falhou'),
+    ]
+
+    event_id = models.CharField(max_length=100, unique=True)
+    event_type = models.CharField(max_length=100)
+    payload = models.JSONField(default=dict)
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default=STATUS_RECEIVED,
+    )
+    received_at = models.DateTimeField(auto_now_add=True)
+    processed_at = models.DateTimeField(null=True, blank=True)
+    error_message = models.TextField(blank=True)
+
+    class Meta:
+        db_table = 'appointments_mercadopagowebhookevent'
+        ordering = ['-received_at']
+        verbose_name = 'Evento de webhook Mercado Pago'
+        verbose_name_plural = 'Eventos de webhook Mercado Pago'
 
     def __str__(self):
         return f'{self.event_type} - {self.event_id}'

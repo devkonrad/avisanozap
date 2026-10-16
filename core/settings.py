@@ -125,9 +125,19 @@ ASAAS_BASE_URL = os.environ.get(
     'https://api-sandbox.asaas.com/v3',
 ).rstrip('/')
 
+# Assas
 ASAAS_API_KEY = os.environ.get('ASAAS_API_KEY', '')
 ASAAS_WEBHOOK_TOKEN = os.environ.get('ASAAS_WEBHOOK_TOKEN', '')
 
+# Mercado Pago
+MERCADO_PAGO_ACCESS_TOKEN = os.environ.get(
+    'MERCADO_PAGO_ACCESS_TOKEN',
+    '',
+)
+MERCADO_PAGO_WEBHOOK_SECRET = os.environ.get(
+    'MERCADO_PAGO_WEBHOOK_SECRET',
+    '',
+)
 
 LOGIN_URL = "/accounts/login/"
 LOGIN_REDIRECT_URL = "/"
