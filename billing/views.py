@@ -1,73 +1,125 @@
+
 import json
 import logging
-from django.utils import timezone
 
 from django.conf import settings
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
 from django.db import IntegrityError, transaction
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 
 from appointments.models import ProfessionalProfile
-
-from .models import (
+from billing.forms import CheckoutEmailForm
+from billing.models import (
     PROVIDER_ASAAS,
     PROVIDER_MERCADO_PAGO,
     BillingPlan,
     BillingSettings,
     MercadoPagoWebhookEvent,
-    Payment,
     Subscription,
 )
-from .services.mercado_pago_webhooks import (
-    MercadoPagoWebhookProcessingError,
-    process_mercado_pago_order,
-)
-from .services.asaas import (
+from billing.services.asaas import (
     AsaasError,
     create_checkout as create_asaas_checkout,
 )
-from .services.mercado_pago import (
+from billing.services.mercado_pago import (
     MercadoPagoError,
     create_checkout as create_mercado_pago_checkout,
     validate_webhook_signature,
+)
+from billing.services.mercado_pago_webhooks import (
+    MercadoPagoWebhookProcessingError,
+    process_mercado_pago_order,
 )
 
 logger = logging.getLogger(__name__)
 
 
-@login_required
 def checkout(request, plan_code):
     plan = get_object_or_404(
         BillingPlan,
         code=plan_code,
         is_active=True,
     )
-    profile = get_object_or_404(
-        ProfessionalProfile,
-        user=request.user,
-    )
+    profile = None
+
+    if request.user.is_authenticated:
+        profile = ProfessionalProfile.objects.filter(
+            user=request.user,
+        ).first()
+
+    if profile:
+        email = profile.user.email.strip().lower()
+        email_form = CheckoutEmailForm(
+            initial={"email": email},
+        )
+    elif request.method == "POST":
+        email_form = CheckoutEmailForm(request.POST)
+        if not email_form.is_valid():
+            return render(
+                request,
+                "billing/checkout_confirm.html",
+                {
+                    "plan": plan,
+                    "email_form": email_form,
+                },
+                status=400,
+            )
+        email = email_form.cleaned_data["email"]
+    else:
+        email_form = CheckoutEmailForm(
+            initial={
+                "email": (
+                    request.user.email
+                    if request.user.is_authenticated
+                    else ""
+                ),
+            },
+        )
+        return render(
+            request,
+            "billing/checkout_confirm.html",
+            {
+                "plan": plan,
+                "email_form": email_form,
+            },
+        )
 
     if request.method == "GET":
         return render(
             request,
             "billing/checkout_confirm.html",
-            {"plan": plan},
+            {
+                "plan": plan,
+                "email_form": email_form,
+            },
         )
 
     if request.method != "POST":
         return redirect("home")
 
-    existing = Subscription.objects.filter(
-        professional=profile,
-        status__in=[
-            Subscription.STATUS_PENDING,
-            Subscription.STATUS_ACTIVE,
-        ],
-    ).first()
+    open_statuses = [
+        Subscription.STATUS_PENDING,
+        Subscription.STATUS_ACTIVE,
+    ]
+    subscriptions = Subscription.objects.filter(
+        status__in=open_statuses,
+    )
+
+    if profile:
+        subscriptions = subscriptions.filter(
+            professional=profile,
+        )
+    else:
+        subscriptions = subscriptions.filter(
+            professional__isnull=True,
+            customer_email=email,
+        )
+
+    existing = subscriptions.first()
 
     if existing and existing.status == Subscription.STATUS_ACTIVE:
         messages.info(
@@ -79,48 +131,46 @@ def checkout(request, plan_code):
     if existing and existing.billing_plan_id != plan.id:
         messages.error(
             request,
-            "Você já possui uma contratação pendente. "
-            "Conclua ou resolva essa contratação antes de "
-            "escolher outro plano.",
+            "Já existe uma compra em andamento para este cadastro. "
+            "Retome o checkout anterior antes de escolher outro plano.",
         )
         return redirect("home")
 
     if existing:
         subscription = existing
+        provider = subscription.provider
     else:
         billing_settings = BillingSettings.objects.filter(
             pk=1,
         ).first()
         provider = (
             billing_settings.checkout_provider
-            if billing_settings
-            else PROVIDER_ASAAS
+            if billing_settings and billing_settings.checkout_provider
+            else PROVIDER_MERCADO_PAGO
         )
 
         if provider not in {
             PROVIDER_ASAAS,
             PROVIDER_MERCADO_PAGO,
         }:
-            logger.error(
-                "Unsupported checkout provider: %s",
-                provider,
-            )
             messages.error(
                 request,
-                "O pagamento está temporariamente indisponível. "
-                "Tente novamente mais tarde.",
+                "O meio de pagamento está indisponível no momento.",
             )
             return redirect("home")
+
+        subscription_plan = (
+            Subscription.PLAN_MONTHLY
+            if plan.billing_type == BillingPlan.TYPE_MONTHLY
+            else Subscription.PLAN_PIX
+        )
 
         try:
             with transaction.atomic():
                 subscription = Subscription.objects.create(
                     professional=profile,
-                    plan=(
-                        Subscription.PLAN_MONTHLY
-                        if plan.billing_type == BillingPlan.TYPE_MONTHLY
-                        else Subscription.PLAN_PIX
-                    ),
+                    customer_email=email,
+                    plan=subscription_plan,
                     billing_plan=plan,
                     amount=plan.amount,
                     status=Subscription.STATUS_PENDING,
@@ -129,74 +179,68 @@ def checkout(request, plan_code):
         except IntegrityError:
             messages.error(
                 request,
-                "Não foi possível iniciar outra contratação. "
-                "Verifique se já existe uma assinatura pendente.",
+                "Já existe uma compra em andamento para este cadastro. "
+                "Tente retomar o checkout anterior.",
             )
             return redirect("home")
 
     if subscription.provider_checkout_url:
         return redirect(subscription.provider_checkout_url)
 
-    callback_url = request.build_absolute_uri(reverse("home"))
+    callback_url = request.build_absolute_uri(
+        reverse("home"),
+    )
 
     try:
-        if subscription.provider == PROVIDER_ASAAS:
+        if provider == PROVIDER_ASAAS:
             checkout_data = create_asaas_checkout(
-                subscription=subscription,
-                plan=plan,
-                callback_url=callback_url,
-            )
-        elif subscription.provider == PROVIDER_MERCADO_PAGO:
-            checkout_data = create_mercado_pago_checkout(
-                subscription=subscription,
-                plan=plan,
-                callback_url=callback_url,
-                payer_email=request.user.email,
+                subscription,
+                plan,
+                callback_url,
             )
         else:
-            logger.error(
-                "Unsupported subscription provider: %s",
-                subscription.provider,
+            checkout_data = create_mercado_pago_checkout(
+                subscription,
+                plan,
+                callback_url,
+                payer_email=email,
             )
-            messages.error(
-                request,
-                "O pagamento está temporariamente indisponível. "
-                "Tente novamente mais tarde.",
-            )
-            return redirect("home")
     except (AsaasError, MercadoPagoError):
         logger.exception(
-            "Failed to create checkout for subscription %s",
+            "Failed to create checkout for subscription %s.",
             subscription.id,
         )
         messages.error(
             request,
             "Não foi possível iniciar o pagamento. "
-            "Tente novamente mais tarde.",
+            "Tente novamente em instantes.",
         )
         return redirect("home")
 
-    subscription.provider_checkout_id = checkout_data["id"]
-    subscription.provider_checkout_url = checkout_data["url"]
+    checkout_id = checkout_data["id"]
+    checkout_url = checkout_data["url"]
 
-    update_fields = [
-        "provider_checkout_id",
-        "provider_checkout_url",
-        "updated_at",
-    ]
+    subscription.provider_checkout_id = checkout_id
+    subscription.provider_checkout_url = checkout_url
 
     if (
-        subscription.provider == PROVIDER_MERCADO_PAGO
+        provider == PROVIDER_MERCADO_PAGO
         and plan.billing_type == BillingPlan.TYPE_MONTHLY
     ):
         subscription.provider_subscription_id = (
-            checkout_data["subscription_id"]
+            checkout_data.get("subscription_id", checkout_id)
         )
-        update_fields.append("provider_subscription_id")
 
-    subscription.save(update_fields=update_fields)
+    subscription.save(
+        update_fields=[
+            "provider_checkout_id",
+            "provider_checkout_url",
+            "provider_subscription_id",
+            "updated_at",
+        ],
+    )
 
-    return redirect(subscription.provider_checkout_url)
+    return redirect(checkout_url)
 
 
 @csrf_exempt
@@ -219,7 +263,9 @@ def mercado_pago_webhook(request):
     )
 
     if not is_valid:
-        logger.warning("Rejected Mercado Pago webhook with invalid signature.")
+        logger.warning(
+            "Rejected Mercado Pago webhook with invalid signature.",
+        )
         return HttpResponse(status=401)
 
     try:
@@ -261,28 +307,36 @@ def mercado_pago_webhook(request):
                 "status",
                 "processed_at",
                 "error_message",
-            ]
+            ],
         )
         return HttpResponse(status=200)
 
     event.status = MercadoPagoWebhookEvent.STATUS_PROCESSING
     event.error_message = ""
-    event.save(update_fields=["status", "error_message"])
+    event.save(
+        update_fields=["status", "error_message"],
+    )
+
+    order_id = str(
+        (payload.get("data") or {}).get("id") or data_id
+    )
 
     try:
-        process_mercado_pago_order(
-            str((payload.get("data") or {}).get("id") or data_id)
-        )
+        process_mercado_pago_order(order_id)
     except MercadoPagoError as exc:
         event.status = MercadoPagoWebhookEvent.STATUS_FAILED
         event.error_message = str(exc)[:2000]
-        event.save(update_fields=["status", "error_message"])
+        event.save(
+            update_fields=["status", "error_message"],
+        )
         logger.exception("Mercado Pago order processing failed.")
         return HttpResponse(status=500)
     except MercadoPagoWebhookProcessingError as exc:
         event.status = MercadoPagoWebhookEvent.STATUS_FAILED
         event.error_message = str(exc)[:2000]
-        event.save(update_fields=["status", "error_message"])
+        event.save(
+            update_fields=["status", "error_message"],
+        )
         logger.warning("Mercado Pago order rejected: %s", exc)
         return HttpResponse(status=200)
 
@@ -294,8 +348,7 @@ def mercado_pago_webhook(request):
             "status",
             "processed_at",
             "error_message",
-        ]
+        ],
     )
 
     return HttpResponse(status=200)
-

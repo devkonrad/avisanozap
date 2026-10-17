@@ -135,9 +135,9 @@ class CheckoutTests(TestCase):
             "https://asaas.example/checkout/123",
         )
         create_checkout_mock.assert_called_once_with(
-            subscription=subscription,
-            plan=self.pix_plan,
-            callback_url="http://testserver/",
+            subscription,
+            self.pix_plan,
+            "http://testserver/",
         )
 
     @patch("billing.views.create_mercado_pago_checkout")
@@ -175,9 +175,9 @@ class CheckoutTests(TestCase):
             "https://mercadopago.example/checkout/123",
         )
         create_checkout_mock.assert_called_once_with(
-            subscription=subscription,
-            plan=self.pix_plan,
-            callback_url="http://testserver/",
+            subscription,
+            self.pix_plan,
+            "http://testserver/",
             payer_email=self.user.email,
         )
 
@@ -214,7 +214,12 @@ class CheckoutTests(TestCase):
             subscription.provider_checkout_id,
             "mp-subscription-123",
         )
-        create_checkout_mock.assert_called_once()
+        create_checkout_mock.assert_called_once_with(
+            subscription,
+            self.monthly_plan,
+            "http://testserver/",
+            payer_email=self.user.email,
+        )
 
     @patch("billing.views.create_asaas_checkout")
     def test_reuses_existing_checkout(self, create_checkout_mock):
@@ -256,7 +261,11 @@ class CheckoutTests(TestCase):
             "https://asaas.example/checkout/456",
             fetch_redirect_response=False,
         )
-        create_asaas_checkout_mock.assert_called_once()
+        create_asaas_checkout_mock.assert_called_once_with(
+            subscription,
+            self.pix_plan,
+            "http://testserver/",
+        )
         create_checkout_mock.assert_not_called()
 
         subscription.refresh_from_db()
@@ -359,6 +368,24 @@ class CheckoutTests(TestCase):
             "billing/checkout_confirm.html",
         )
 
+    @patch("billing.views.create_asaas_checkout")
+    def test_inactive_plan_cannot_start_checkout(
+        self,
+        create_checkout_mock,
+    ):
+        self.pix_plan.is_active = False
+        self.pix_plan.save(update_fields=["is_active"])
+
+        response = self.client.post(self.checkout_url())
+
+        self.assertEqual(response.status_code, 404)
+        self.assertFalse(
+            Subscription.objects.filter(
+                professional=self.profile,
+            ).exists(),
+        )
+        create_checkout_mock.assert_not_called()
+
 
 @override_settings(MERCADO_PAGO_ACCESS_TOKEN="test-access-token")
 class MercadoPagoServiceTests(SimpleTestCase):
@@ -391,7 +418,15 @@ class MercadoPagoServiceTests(SimpleTestCase):
     def test_creates_pix_checkout(self, request_mock):
         request_mock.return_value = self.mock_api_response({
             "id": "order-123",
-            "checkout_url": "https://mp.example/checkout/123",
+            "transactions": {
+                "payments": [
+                    {
+                        "payment_method": {
+                            "ticket_url": "https://mp.example/pix/123",
+                        },
+                    },
+                ],
+            },
         })
 
         result = create_pix_checkout(
@@ -405,7 +440,7 @@ class MercadoPagoServiceTests(SimpleTestCase):
             result,
             {
                 "id": "order-123",
-                "url": "https://mp.example/checkout/123",
+                "url": "https://mp.example/pix/123",
             },
         )
 
@@ -426,13 +461,31 @@ class MercadoPagoServiceTests(SimpleTestCase):
         )
 
         payload = args.kwargs["json"]
+
+        self.assertEqual(payload["type"], "online")
+        self.assertEqual(payload["processing_mode"], "automatic")
         self.assertEqual(payload["total_amount"], "49.90")
         self.assertEqual(
             payload["external_reference"],
             str(self.subscription.id),
         )
-        self.assertEqual(payload["payer"]["email"], self.payer_email)
-        self.assertEqual(payload["items"][0]["unit_price"], "49.90")
+        self.assertEqual(payload["description"], self.pix_plan.name)
+        self.assertEqual(
+            payload["payer"]["email"],
+            self.payer_email,
+        )
+        self.assertEqual(
+            payload["transactions"]["payments"],
+            [
+                {
+                    "amount": "49.90",
+                    "payment_method": {
+                        "id": "pix",
+                        "type": "bank_transfer",
+                    },
+                },
+            ],
+        )
 
     @patch("billing.services.mercado_pago.requests.request")
     def test_creates_monthly_checkout(self, request_mock):
@@ -477,7 +530,15 @@ class MercadoPagoServiceTests(SimpleTestCase):
     def test_create_checkout_selects_pix(self, request_mock):
         request_mock.return_value = self.mock_api_response({
             "id": "order-123",
-            "checkout_url": "https://mp.example/checkout/123",
+            "transactions": {
+                "payments": [
+                    {
+                        "payment_method": {
+                            "ticket_url": "https://mp.example/pix/123",
+                        },
+                    },
+                ],
+            },
         })
 
         result = create_checkout(
@@ -487,10 +548,16 @@ class MercadoPagoServiceTests(SimpleTestCase):
             self.payer_email,
         )
 
-        self.assertEqual(result["id"], "order-123")
         self.assertEqual(
-            request_mock.call_args.args[1],
-            "https://api.mercadopago.com/v1/orders",
+            result,
+            {
+                "id": "order-123",
+                "url": "https://mp.example/pix/123",
+            },
+        )
+        self.assertEqual(
+            request_mock.call_args.args,
+            ("POST", "https://api.mercadopago.com/v1/orders"),
         )
 
     @patch("billing.services.mercado_pago.requests.request")
@@ -507,10 +574,13 @@ class MercadoPagoServiceTests(SimpleTestCase):
             self.payer_email,
         )
 
-        self.assertEqual(result["subscription_id"], "preapproval-123")
         self.assertEqual(
-            request_mock.call_args.args[1],
-            "https://api.mercadopago.com/preapproval",
+            result["subscription_id"],
+            "preapproval-123",
+        )
+        self.assertEqual(
+            request_mock.call_args.args,
+            ("POST", "https://api.mercadopago.com/preapproval"),
         )
 
     def test_rejects_missing_payer_email(self):
@@ -545,11 +615,18 @@ class MercadoPagoServiceTests(SimpleTestCase):
     ):
         request_mock.return_value = self.mock_api_response({
             "id": "order-123",
+            "transactions": {
+                "payments": [
+                    {
+                        "payment_method": {},
+                    },
+                ],
+            },
         })
 
         with self.assertRaisesMessage(
             MercadoPagoError,
-            "did not return an order ID and checkout URL",
+            "Mercado Pago did not return the Pix payment URL.",
         ):
             create_pix_checkout(
                 self.subscription,
@@ -810,8 +887,8 @@ class MercadoPagoOrderProcessingTests(TestCase):
                         "paid_amount": "49.90",
                         "status": "processed",
                         "status_detail": "accredited",
-                    }
-                ]
+                    },
+                ],
             },
         }
 

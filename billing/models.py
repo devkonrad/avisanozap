@@ -107,9 +107,16 @@ class Subscription(models.Model):
         editable=False,
     )
     professional = models.ForeignKey(
-        'appointments.ProfessionalProfile',
+        "appointments.ProfessionalProfile",
         on_delete=models.PROTECT,
-        related_name='subscriptions',
+        related_name="subscriptions",
+        null=True,
+        blank=True,
+    )
+    customer_email = models.EmailField(
+        max_length=254,
+        blank=True,
+        default="",
     )
     plan = models.CharField(max_length=20, choices=PLAN_CHOICES)
     status = models.CharField(
@@ -176,6 +183,15 @@ class Subscription(models.Model):
                     & ~Q(provider_checkout_id="")
                 ),
                 name="unique_provider_checkout_id",
+            ),
+            models.UniqueConstraint(
+                fields=["customer_email"],
+                condition=(
+                    Q(professional__isnull=True)
+                    & ~Q(customer_email="")
+                    & Q(status__in=["PENDING", "ACTIVE"])
+                ),
+                name="unique_open_guest_subscription_per_email",
             ),
         ]
 
@@ -260,7 +276,7 @@ class BillingSettings(models.Model):
     checkout_provider = models.CharField(
         max_length=20,
         choices=PROVIDER_CHOICES,
-        default=PROVIDER_ASAAS,
+        default=PROVIDER_MERCADO_PAGO,
         verbose_name="Provedor padrão de checkout",
         help_text=(
             "Provedor utilizado nas novas contratações. "

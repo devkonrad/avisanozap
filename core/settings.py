@@ -139,6 +139,11 @@ MERCADO_PAGO_WEBHOOK_SECRET = os.environ.get(
     '',
 )
 
+WHATSAPP_SUPPORT_PHONE = os.environ.get(
+    "WHATSAPP_SUPPORT_PHONE",
+    "",
+)
+
 LOGIN_URL = "/accounts/login/"
 LOGIN_REDIRECT_URL = "/"
 LOGOUT_REDIRECT_URL = "/"

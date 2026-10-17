@@ -7,11 +7,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta
         name="description"
-        content="Organize seus agendamentos e lembre seus clientes pelo WhatsApp com o AvisanoZap. Conheça os planos e simplifique sua rotina profissional."
+        content="Organize seus agendamentos e simplifique os lembretes pelo WhatsApp com o AvisanoZap. Tenha 30 dias de acesso por R$ 35,90 via Pix."
     >
     <meta name="theme-color" content="#f7faf8">
 
-    <title>AvisanoZap | Organize seus agendamentos</title>
+    <title>AvisanoZap | Organize seus agendamentos pelo WhatsApp</title>
 
     <link rel="stylesheet" href="{% static 'landing/css/home.css' %}">
     <script src="{% static 'landing/js/home.js' %}" defer></script>
@@ -64,16 +64,33 @@
             >
                 <a href="#beneficios">Benefícios</a>
                 <a href="#como-funciona">Como funciona</a>
-                <a href="#planos">Planos</a>
+
+                {% if whatsapp_support_url %}
+                    <a
+                        class="button button-small button-secondary"
+                        href="{{ whatsapp_support_url }}"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
+                        Fale conosco
+                    </a>
+                {% endif %}
+
                 <a
                     class="button button-small button-secondary"
                     href="{% url 'accounts:login' %}"
                 >
                     Entrar
                 </a>
-                <a class="button button-small button-primary" href="#planos">
-                    Ver planos
-                </a>
+
+                {% if billing_plan %}
+                    <a
+                        class="button button-small button-primary"
+                        href="{% url 'billing:checkout' billing_plan.code %}"
+                    >
+                        Adquirir agora
+                    </a>
+                {% endif %}
             </nav>
         </div>
     </header>
@@ -95,25 +112,39 @@
                     </h1>
 
                     <p class="hero-description">
-                        Organize seus agendamentos e ajude seus clientes a
-                        lembrarem dos horários com mensagens pelo WhatsApp.
-                        Mais tranquilidade para você focar no seu trabalho.
+                        Perde tempo confirmando horários e enviando lembretes
+                        manualmente? O AvisanoZap ajuda você a organizar os
+                        agendamentos e manter seus clientes informados pelo
+                        WhatsApp, para você se concentrar no atendimento.
                     </p>
 
                     <div class="hero-actions">
-                        <a class="button button-primary" href="#planos">
-                            Conhecer os planos
-                            <span aria-hidden="true">→</span>
-                        </a>
-                        <a class="button button-secondary" href="#como-funciona">
+                        {% if billing_plan %}
+                            <a
+                                class="button button-primary"
+                                href="{% url 'billing:checkout' billing_plan.code %}"
+                            >
+                                Adquirir agora
+                                <span aria-hidden="true">→</span>
+                            </a>
+                        {% endif %}
+
+                        <a
+                            class="button button-secondary"
+                            href="#como-funciona"
+                        >
                             Como funciona
                         </a>
                     </div>
 
                     <div class="hero-note">
                         <span class="check-icon" aria-hidden="true">✓</span>
-                        Feito para profissionais que trabalham com hora marcada.
+                        Para profissionais autônomos e pequenos negócios.
                     </div>
+
+                    <p class="hero-offer-note">
+                        30 dias de acesso por R$ 35,90. Pagamento único via Pix.
+                    </p>
                 </div>
 
                 <div
@@ -184,98 +215,91 @@
             </div>
         </section>
 
-        <!-- Pricing is intentionally placed near the top of the page. -->
-        <section class="section pricing-section" id="planos">
+        <section class="section pricing-section" id="oferta">
             <div class="container">
                 <div class="section-heading">
-                    <span class="eyebrow">Escolha como começar</span>
-                    <h2>Mais organização para o seu negócio.</h2>
+                    <span class="eyebrow">Comece hoje</span>
+                    <h2>Mais organização por um preço simples.</h2>
                     <p>
-                        Compare as opções e escolha a que melhor combina com
-                        sua rotina. Comece a simplificar seus agendamentos.
+                        Experimente o AvisanoZap por 30 dias e simplifique
+                        a rotina de agendamentos do seu negócio.
                     </p>
                 </div>
 
-                {% if billing_plans %}
+                {% if billing_plan %}
                     <div class="pricing-grid">
-                        {% for plan in billing_plans %}
-                            <article class="pricing-card">
-                                <div class="pricing-main">
-                                    <span class="pricing-label">AVISANOZAP</span>
-                                    <h3>{{ plan.name }}</h3>
+                        <article class="pricing-card">
+                            <div class="pricing-main">
+                                <span class="pricing-label">SUA OFERTA</span>
+                                <h3>AvisanoZap por 30 dias</h3>
 
-                                    <p>{{ plan.description }}</p>
+                                <p>
+                                    Tudo o que você precisa para começar a
+                                    organizar seus atendimentos e lembretes.
+                                </p>
 
-                                    <ul class="pricing-features">
-                                        <li>
-                                            <span aria-hidden="true">✓</span>
-                                            Organização de agendamentos
-                                        </li>
-                                        <li>
-                                            <span aria-hidden="true">✓</span>
-                                            Cadastro de serviços e clientes
-                                        </li>
-                                        <li>
-                                            <span aria-hidden="true">✓</span>
-                                            Lembretes pelo WhatsApp
-                                        </li>
-                                    </ul>
+                                <ul class="pricing-features">
+                                    <li>
+                                        <span aria-hidden="true">✓</span>
+                                        Organização de agendamentos
+                                    </li>
+                                    <li>
+                                        <span aria-hidden="true">✓</span>
+                                        Cadastro de serviços e clientes
+                                    </li>
+                                    <li>
+                                        <span aria-hidden="true">✓</span>
+                                        Lembretes pelo WhatsApp
+                                    </li>
+                                </ul>
+                            </div>
+
+                            <div class="pricing-action">
+                                <span class="pricing-price">
+                                    R$ 35,90
+                                </span>
+
+                                <span class="pricing-period">
+                                    30 dias de acesso · Pagamento único
+                                </span>
+
+                                <div class="pricing-payment">
+                                    Pagamento via Pix
                                 </div>
 
-                                <div class="pricing-action">
-                                    <span class="pricing-price">
-                                        R$ {{ plan.amount|floatformat:2 }}
-                                    </span>
+                                <a
+                                    class="button button-primary button-full"
+                                    href="{% url 'billing:checkout' billing_plan.code %}"
+                                >
+                                    Adquirir agora
+                                    <span aria-hidden="true">→</span>
+                                </a>
 
-                                    <span class="pricing-period">
-                                        {% if plan.billing_type == "MONTHLY" %}
-                                            Por mês, com cobrança recorrente.
-                                        {% else %}
-                                            Pagamento único para
-                                            {{ plan.access_days }} dias de acesso.
-                                        {% endif %}
-                                    </span>
-
-                                    <div class="pricing-payment">
-                                        {{ plan.get_payment_method_display }}
-                                    </div>
-
-                                    <form
-                                        method="get"
-                                        action="{% url 'billing:checkout' plan.code %}"
-                                    >
-                                        <button
-                                            class="button button-primary button-full"
-                                            type="submit"
-                                        >
-                                            {% if plan.billing_type == "MONTHLY" %}
-                                                Assinar plano mensal
-                                            {% else %}
-                                                Contratar com Pix
-                                            {% endif %}
-                                            <span aria-hidden="true">→</span>
-                                        </button>
-                                    </form>
-
-                                    <p class="pricing-note">
-                                        {% if plan.billing_type == "MONTHLY" %}
-                                            Pagamento recorrente via cartão de crédito.
-                                        {% else %}
-                                            Acesso por {{ plan.access_days }} dias
-                                            após a confirmação do pagamento.
-                                        {% endif %}
-                                    </p>
-                                </div>
-                            </article>
-                        {% endfor %}
+                                <p class="pricing-note">
+                                    Seu acesso será liberado após a confirmação
+                                    do pagamento.
+                                </p>
+                            </div>
+                        </article>
                     </div>
                 {% else %}
                     <div class="pricing-empty">
-                        <h3>Estamos preparando nossos planos.</h3>
+                        <h3>Estamos preparando sua contratação.</h3>
                         <p>
-                            Em breve você poderá conhecer as opções de assinatura
-                            do AvisanoZap.
+                            Entre em contato conosco para saber mais sobre
+                            o AvisanoZap.
                         </p>
+
+                        {% if whatsapp_support_url %}
+                            <a
+                                class="button button-primary"
+                                href="{{ whatsapp_support_url }}"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
+                                Fale conosco
+                            </a>
+                        {% endif %}
                     </div>
                 {% endif %}
             </div>
@@ -402,9 +426,15 @@
                         </div>
                     </div>
 
-                    <a class="text-link" href="#planos">
-                        Escolha seu plano <span aria-hidden="true">→</span>
-                    </a>
+                    {% if billing_plan %}
+                        <a
+                            class="text-link"
+                            href="{% url 'billing:checkout' billing_plan.code %}"
+                        >
+                            Adquirir por R$ 35,90
+                            <span aria-hidden="true">→</span>
+                        </a>
+                    {% endif %}
                 </div>
 
                 <div class="how-visual">
@@ -473,10 +503,15 @@
                     <span>Outros serviços com agendamento</span>
                 </div>
 
-                <a class="button button-primary audience-cta" href="#planos">
-                    Encontrar meu plano
-                    <span aria-hidden="true">→</span>
-                </a>
+                {% if billing_plan %}
+                    <a
+                        class="button button-primary audience-cta"
+                        href="{% url 'billing:checkout' billing_plan.code %}"
+                    >
+                        Adquirir agora
+                        <span aria-hidden="true">→</span>
+                    </a>
+                {% endif %}
             </div>
         </section>
 
@@ -486,13 +521,33 @@
                     <span class="eyebrow eyebrow-light">Sua rotina merece isso</span>
                     <h2>Que tal ter mais tempo para o que realmente importa?</h2>
                     <p>
-                        Conheça o AvisanoZap e descubra uma forma mais
-                        organizada de cuidar dos seus agendamentos.
+                        Comece com 30 dias de acesso ao AvisanoZap por
+                        R$ 35,90, com pagamento único via Pix.
                     </p>
                 </div>
-                <a class="button button-light" href="#planos">
-                    Ver planos <span aria-hidden="true">→</span>
-                </a>
+
+                <div class="final-cta-actions">
+                    {% if billing_plan %}
+                        <a
+                            class="button button-light"
+                            href="{% url 'billing:checkout' billing_plan.code %}"
+                        >
+                            Adquirir agora
+                            <span aria-hidden="true">→</span>
+                        </a>
+                    {% endif %}
+
+                    {% if whatsapp_support_url %}
+                        <a
+                            class="button button-light"
+                            href="{{ whatsapp_support_url }}"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
+                            Fale conosco
+                        </a>
+                    {% endif %}
+                </div>
             </div>
         </section>
     </main>
@@ -523,6 +578,16 @@
 
             <p>Mais organização para quem vive de atender bem.</p>
 
+            {% if whatsapp_support_url %}
+                <a
+                    href="{{ whatsapp_support_url }}"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                >
+                    Fale conosco pelo WhatsApp
+                </a>
+            {% endif %}
+
             <span class="copyright">
                 © <span id="current-year">2026</span> AvisanoZap.
                 Todos os direitos reservados.
@@ -533,11 +598,17 @@
     <nav class="mobile-cta-bar" aria-label="Contratação">
         <div class="mobile-cta-content">
             <span class="mobile-cta-text">
-                Simplifique seus agendamentos
+                30 dias por R$ 35,90 via Pix
             </span>
-            <a class="button button-primary" href="#planos">
-                Ver planos
-            </a>
+
+            {% if billing_plan %}
+                <a
+                    class="button button-primary"
+                    href="{% url 'billing:checkout' billing_plan.code %}"
+                >
+                    Adquirir agora
+                </a>
+            {% endif %}
         </div>
     </nav>
 </body>

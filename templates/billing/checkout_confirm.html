@@ -5,6 +5,10 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+        name="description"
+        content="Confirme seu plano AvisanoZap e continue para o pagamento seguro."
+    >
     <title>Confirmar contratação | AvisanoZap</title>
     <link rel="stylesheet" href="{% static 'landing/css/home.css' %}">
 </head>
@@ -12,12 +16,15 @@
     <main class="pricing-section">
         <div class="container">
             <div class="pricing-card">
-                <div class="pricing-main">
+                <section class="pricing-main" aria-labelledby="checkout-title">
                     <span class="pricing-label">AVISANOZAP</span>
 
-                    <h1>Confirmar contratação</h1>
+                    <h1 id="checkout-title">Confirmar contratação</h1>
                     <h2>{{ plan.name }}</h2>
-                    <p>{{ plan.description }}</p>
+
+                    {% if plan.description %}
+                        <p>{{ plan.description }}</p>
+                    {% endif %}
 
                     <ul class="pricing-features">
                         <li>
@@ -33,9 +40,12 @@
                             Lembretes pelo WhatsApp
                         </li>
                     </ul>
-                </div>
+                </section>
 
-                <div class="pricing-action">
+                <section
+                    class="pricing-action"
+                    aria-label="Resumo e pagamento do plano"
+                >
                     <span class="pricing-price">
                         R$ {{ plan.amount|floatformat:2 }}
                     </span>
@@ -44,7 +54,8 @@
                         {% if plan.billing_type == "MONTHLY" %}
                             Cobrança mensal recorrente.
                         {% else %}
-                            Pagamento único para {{ plan.access_days }} dias de acesso.
+                            Pagamento único para {{ plan.access_days }}
+                            dias de acesso.
                         {% endif %}
                     </span>
 
@@ -54,6 +65,43 @@
 
                     <form method="post">
                         {% csrf_token %}
+
+                        {% if email_form %}
+                            <div class="checkout-email-field">
+                                <label for="{{ email_form.email.id_for_label }}">
+                                    Seu e-mail
+                                </label>
+
+                                {{ email_form.email }}
+
+                                {% if email_form.email.help_text %}
+                                    <small>
+                                        {{ email_form.email.help_text }}
+                                    </small>
+                                {% endif %}
+
+                                {% for error in email_form.email.errors %}
+                                    <p class="error-message" role="alert">
+                                        {{ error }}
+                                    </p>
+                                {% endfor %}
+
+                                {% if email_form.non_field_errors %}
+                                    {% for error in email_form.non_field_errors %}
+                                        <p class="error-message" role="alert">
+                                            {{ error }}
+                                        </p>
+                                    {% endfor %}
+                                {% endif %}
+
+                                <small>
+                                    Informe um e-mail válido para identificar
+                                    sua compra e continuar a configuração
+                                    da sua conta.
+                                </small>
+                            </div>
+                        {% endif %}
+
                         <button
                             class="button button-primary button-full"
                             type="submit"
@@ -71,8 +119,10 @@
                         {% endif %}
                     </p>
 
-                    <a href="{% url 'home' %}">Voltar aos planos</a>
-                </div>
+                    <a href="{% url 'home' %}">
+                        Voltar ao início
+                    </a>
+                </section>
             </div>
         </div>
     </main>
