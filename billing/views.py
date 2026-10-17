@@ -1,4 +1,3 @@
-
 import json
 import logging
 
@@ -276,15 +275,30 @@ def mercado_pago_webhook(request):
             status=400,
         )
 
-    if not isinstance(payload, dict) or not payload.get("id"):
+    if not isinstance(payload, dict):
         return JsonResponse(
-            {"error": "Missing webhook event ID."},
+            {"error": "Invalid webhook payload."},
             status=400,
         )
 
-    event_id = str(payload["id"])
     event_type = str(
         payload.get("action") or payload.get("type") or "unknown"
+    )
+
+    data = payload.get("data")
+    if not isinstance(data, dict):
+        data = {}
+
+    order_id = str(data.get("id") or data_id)
+
+    if not order_id:
+        return JsonResponse(
+            {"error": "Missing webhook order ID."},
+            status=400,
+        )
+
+    event_id = str(
+        payload.get("id") or f"{event_type}:{order_id}"
     )
 
     event, _ = MercadoPagoWebhookEvent.objects.get_or_create(
@@ -315,10 +329,6 @@ def mercado_pago_webhook(request):
     event.error_message = ""
     event.save(
         update_fields=["status", "error_message"],
-    )
-
-    order_id = str(
-        (payload.get("data") or {}).get("id") or data_id
     )
 
     try:
