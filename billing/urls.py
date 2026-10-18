@@ -15,4 +15,9 @@ urlpatterns = [
         views.mercado_pago_webhook,
         name="mercado_pago_webhook",
     ),
+    path(
+        "return/<uuid:subscription_id>/",
+        views.checkout_return,
+        name="checkout_return",
+    ),
 ]

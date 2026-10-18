@@ -1,9 +1,10 @@
+from datetime import timedelta
 from decimal import Decimal, InvalidOperation
 
 from django.db import transaction
 from django.utils import timezone
-from datetime import timedelta
 
+from appointments.services import send_signup_continuation_message
 from billing.models import (
     PROVIDER_MERCADO_PAGO,
     BillingPlan,
@@ -161,7 +162,9 @@ def process_mercado_pago_order(order_id):
         ):
             payment.status = Payment.STATUS_CONFIRMED
             payment.paid_at = payment.paid_at or timezone.now()
-            payment.save(update_fields=["status", "paid_at", "updated_at"])
+            payment.save(
+                update_fields=["status", "paid_at", "updated_at"]
+            )
 
         if subscription.status == Subscription.STATUS_PENDING:
             started_at = timezone.now()
@@ -180,6 +183,13 @@ def process_mercado_pago_order(order_id):
                     "expires_at",
                     "updated_at",
                 ]
+            )
+
+            subscription_id = subscription.pk
+            transaction.on_commit(
+                lambda: send_signup_continuation_message(
+                    subscription_id
+                )
             )
 
         return created

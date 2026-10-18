@@ -1,0 +1,61 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Retorno do pagamento | AvisanoZap</title>
+    <link rel="stylesheet" href="{% static 'landing/css/home.css' %}">
+</head>
+<body>
+    <main class="pricing-section">
+        <div class="container">
+            <div class="pricing-card">
+                <section class="pricing-main">
+                    <span class="pricing-label">AVISANOZAP</span>
+
+                    <h1>Retorno do pagamento</h1>
+
+                    {% if subscription.status == "ACTIVE" %}
+                        <h2>Pagamento confirmado</h2>
+                        <p>
+                            Sua assinatura foi ativada. Agora você pode
+                            continuar a configuração da sua conta.
+                        </p>
+                        <a
+                            class="button button-primary button-full"
+                            href="{{ signup_url }}"
+                        >
+                            Continuar para criar sua conta
+                        </a>
+                    {% elif subscription.status == "PENDING" %}
+                        <h2>Estamos aguardando a confirmação</h2>
+                        <p>
+                            Seu pagamento ainda está sendo processado.
+                            A confirmação pode levar alguns instantes.
+                        </p>
+                        <p>
+                            Você pode voltar a esta página mais tarde
+                            para consultar o estado da assinatura.
+                        </p>
+                    {% else %}
+                        <h2>Assinatura não disponível</h2>
+                        <p>
+                            Esta assinatura não está disponível para
+                            continuar o cadastro. Entre em contato com
+                            o suporte se precisar de ajuda.
+                        </p>
+                    {% endif %}
+
+                    <p>
+                        <a href="{% url 'home' %}">
+                            Voltar ao início
+                        </a>
+                    </p>
+                </section>
+            </div>
+        </div>
+    </main>
+</body>
+</html>

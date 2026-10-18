@@ -54,6 +54,11 @@
         <form method="post">
             {% csrf_token %}
             <input type="hidden" name="next" value="{{ next }}">
+            <input
+                type="hidden"
+                name="subscription"
+                value="{{ subscription_id }}"
+            >
 
             {{ form.as_p }}
 

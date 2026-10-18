@@ -67,6 +67,14 @@
                         {% csrf_token %}
 
                         {% if email_form %}
+                            {% if email_form.non_field_errors %}
+                                {% for error in email_form.non_field_errors %}
+                                    <p class="error-message" role="alert">
+                                        {{ error }}
+                                    </p>
+                                {% endfor %}
+                            {% endif %}
+
                             <div class="checkout-email-field">
                                 <label for="{{ email_form.email.id_for_label }}">
                                     Seu e-mail
@@ -86,18 +94,37 @@
                                     </p>
                                 {% endfor %}
 
-                                {% if email_form.non_field_errors %}
-                                    {% for error in email_form.non_field_errors %}
-                                        <p class="error-message" role="alert">
-                                            {{ error }}
-                                        </p>
-                                    {% endfor %}
+                                <small>
+                                    Utilize o e-mail que deseja associar
+                                    à sua conta AvisanoZap.
+                                </small>
+                            </div>
+
+                            <div class="checkout-email-field">
+                                <label
+                                    for="{{ email_form.whatsapp_number.id_for_label }}"
+                                >
+                                    WhatsApp com DDD
+                                </label>
+
+                                {{ email_form.whatsapp_number }}
+
+                                {% if email_form.whatsapp_number.help_text %}
+                                    <small>
+                                        {{ email_form.whatsapp_number.help_text }}
+                                    </small>
                                 {% endif %}
 
+                                {% for error in email_form.whatsapp_number.errors %}
+                                    <p class="error-message" role="alert">
+                                        {{ error }}
+                                    </p>
+                                {% endfor %}
+
                                 <small>
-                                    Informe um e-mail válido para identificar
-                                    sua compra e continuar a configuração
-                                    da sua conta.
+                                    Enviaremos por WhatsApp o link para você
+                                    concluir seu cadastro após a confirmação
+                                    do pagamento.
                                 </small>
                             </div>
                         {% endif %}

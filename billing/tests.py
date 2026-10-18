@@ -74,6 +74,18 @@ class CheckoutTests(TestCase):
             kwargs={"plan_code": plan.code},
         )
 
+    def checkout_data(self):
+        return {
+            "email": self.user.email,
+            "whatsapp_number": self.profile.whatsapp_number,
+        }
+
+    def checkout_return_url(self, subscription):
+        return (
+            f"http://testserver"
+            f"{reverse('billing:checkout_return', kwargs={'subscription_id': subscription.id})}"
+        )
+
     def configure_provider(self, provider):
         BillingSettings.objects.update_or_create(
             pk=1,
@@ -114,7 +126,10 @@ class CheckoutTests(TestCase):
             "url": "https://asaas.example/checkout/123",
         }
 
-        response = self.client.post(self.checkout_url())
+        response = self.client.post(
+            self.checkout_url(),
+            self.checkout_data(),
+        )
 
         subscription = Subscription.objects.get(
             professional=self.profile,
@@ -137,7 +152,7 @@ class CheckoutTests(TestCase):
         create_checkout_mock.assert_called_once_with(
             subscription,
             self.pix_plan,
-            "http://testserver/",
+            self.checkout_return_url(subscription),
         )
 
     @patch("billing.views.create_mercado_pago_checkout")
@@ -151,7 +166,10 @@ class CheckoutTests(TestCase):
             "url": "https://mercadopago.example/checkout/123",
         }
 
-        response = self.client.post(self.checkout_url())
+        response = self.client.post(
+            self.checkout_url(),
+            self.checkout_data(),
+        )
 
         subscription = Subscription.objects.get(
             professional=self.profile,
@@ -177,7 +195,7 @@ class CheckoutTests(TestCase):
         create_checkout_mock.assert_called_once_with(
             subscription,
             self.pix_plan,
-            "http://testserver/",
+            self.checkout_return_url(subscription),
             payer_email=self.user.email,
         )
 
@@ -195,6 +213,7 @@ class CheckoutTests(TestCase):
 
         response = self.client.post(
             self.checkout_url(self.monthly_plan),
+            self.checkout_data(),
         )
 
         subscription = Subscription.objects.get(
@@ -217,7 +236,7 @@ class CheckoutTests(TestCase):
         create_checkout_mock.assert_called_once_with(
             subscription,
             self.monthly_plan,
-            "http://testserver/",
+            self.checkout_return_url(subscription),
             payer_email=self.user.email,
         )
 
@@ -228,7 +247,10 @@ class CheckoutTests(TestCase):
             checkout_url="https://asaas.example/existing",
         )
 
-        response = self.client.post(self.checkout_url())
+        response = self.client.post(
+            self.checkout_url(),
+            self.checkout_data(),
+        )
 
         self.assertRedirects(
             response,
@@ -254,7 +276,10 @@ class CheckoutTests(TestCase):
                 "url": "https://asaas.example/checkout/456",
             },
         ) as create_asaas_checkout_mock:
-            response = self.client.post(self.checkout_url())
+            response = self.client.post(
+                self.checkout_url(),
+                self.checkout_data(),
+            )
 
         self.assertRedirects(
             response,
@@ -264,7 +289,7 @@ class CheckoutTests(TestCase):
         create_asaas_checkout_mock.assert_called_once_with(
             subscription,
             self.pix_plan,
-            "http://testserver/",
+            self.checkout_return_url(subscription),
         )
         create_checkout_mock.assert_not_called()
 
@@ -279,7 +304,10 @@ class CheckoutTests(TestCase):
         self.configure_provider(PROVIDER_ASAAS)
         create_checkout_mock.side_effect = AsaasError("API unavailable")
 
-        response = self.client.post(self.checkout_url())
+        response = self.client.post(
+            self.checkout_url(),
+            self.checkout_data(),
+        )
 
         subscription = Subscription.objects.get(
             professional=self.profile,
@@ -306,7 +334,10 @@ class CheckoutTests(TestCase):
             "API unavailable",
         )
 
-        response = self.client.post(self.checkout_url())
+        response = self.client.post(
+            self.checkout_url(),
+            self.checkout_data(),
+        )
 
         subscription = Subscription.objects.get(
             professional=self.profile,
@@ -326,7 +357,10 @@ class CheckoutTests(TestCase):
     def test_active_subscription_cannot_start_another_checkout(self):
         self.create_subscription(status=Subscription.STATUS_ACTIVE)
 
-        response = self.client.post(self.checkout_url())
+        response = self.client.post(
+            self.checkout_url(),
+            self.checkout_data(),
+        )
 
         self.assertRedirects(
             response,
@@ -345,6 +379,7 @@ class CheckoutTests(TestCase):
 
         response = self.client.post(
             self.checkout_url(self.monthly_plan),
+            self.checkout_data(),
         )
 
         self.assertRedirects(
@@ -376,7 +411,10 @@ class CheckoutTests(TestCase):
         self.pix_plan.is_active = False
         self.pix_plan.save(update_fields=["is_active"])
 
-        response = self.client.post(self.checkout_url())
+        response = self.client.post(
+            self.checkout_url(),
+            self.checkout_data(),
+        )
 
         self.assertEqual(response.status_code, 404)
         self.assertFalse(
@@ -669,7 +707,7 @@ class MercadoPagoWebhookTests(TestCase):
         }
 
     def make_signature(self, data_id=None, request_id=None):
-        data_id = data_id or self.DATA_ID
+        data_id = self.DATA_ID if data_id is None else data_id
         request_id = (
             self.REQUEST_ID if request_id is None else request_id
         )
@@ -688,12 +726,21 @@ class MercadoPagoWebhookTests(TestCase):
 
         return f"ts={timestamp},v1={signature}"
 
-    def post_webhook(self, signature=None, payload=None):
-        signature = signature or self.make_signature()
+    def post_webhook(
+        self,
+        signature=None,
+        payload=None,
+        data_id=DATA_ID,
+    ):
+        signature = signature or self.make_signature(data_id=data_id)
         payload = self.payload if payload is None else payload
+        url = self.url
+
+        if data_id:
+            url = f"{url}?data.id={data_id}"
 
         return self.client.post(
-            f"{self.url}?data.id={self.DATA_ID}",
+            url,
             data=json.dumps(payload),
             content_type="application/json",
             HTTP_X_SIGNATURE=signature,
@@ -747,6 +794,36 @@ class MercadoPagoWebhookTests(TestCase):
         )
         mock_process.assert_called_once_with(self.DATA_ID)
 
+    @override_settings(MERCADO_PAGO_WEBHOOK_SECRET=SECRET)
+    @patch("billing.views.process_mercado_pago_order")
+    def test_pending_event_can_be_retried(self, mock_process):
+        mock_process.return_value = False
+
+        first_response = self.post_webhook()
+
+        self.assertEqual(first_response.status_code, 200)
+
+        event = MercadoPagoWebhookEvent.objects.get(
+            event_id=self.EVENT_ID,
+        )
+        self.assertNotEqual(
+            event.status,
+            MercadoPagoWebhookEvent.STATUS_PROCESSED,
+        )
+
+        mock_process.return_value = True
+
+        second_response = self.post_webhook()
+
+        self.assertEqual(second_response.status_code, 200)
+
+        event.refresh_from_db()
+        self.assertEqual(
+            event.status,
+            MercadoPagoWebhookEvent.STATUS_PROCESSED,
+        )
+        self.assertEqual(mock_process.call_count, 2)
+
     @override_settings(MERCADO_PAGO_WEBHOOK_SECRET="")
     def test_missing_secret_returns_service_unavailable(self):
         response = self.post_webhook()
@@ -774,10 +851,15 @@ class MercadoPagoWebhookTests(TestCase):
         )
 
     @override_settings(MERCADO_PAGO_WEBHOOK_SECRET=SECRET)
-    def test_missing_event_id_is_rejected(self):
-        response = self.post_webhook(payload={"type": "order"})
+    def test_missing_order_id_is_rejected(self):
+        response = self.client.post(
+            self.url,
+            data=json.dumps({"type": "order"}),
+            content_type="application/json",
+            HTTP_X_REQUEST_ID=self.REQUEST_ID,
+        )
 
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 401)
         self.assertEqual(
             MercadoPagoWebhookEvent.objects.count(),
             0,
@@ -789,7 +871,9 @@ class MercadoPagoWebhookTests(TestCase):
 
         self.assertEqual(response.status_code, 405)
 
-    @patch("billing.services.mercado_pago._request")
+
+@patch("billing.services.mercado_pago._request")
+class MercadoPagoLookupServiceTests(SimpleTestCase):
     def test_get_order(self, mock_request):
         mock_request.return_value = {"id": "order-123"}
 
@@ -801,7 +885,6 @@ class MercadoPagoWebhookTests(TestCase):
             "/v1/orders/order-123",
         )
 
-    @patch("billing.services.mercado_pago._request")
     def test_get_payment(self, mock_request):
         mock_request.return_value = {
             "id": "payment-123",
@@ -816,7 +899,6 @@ class MercadoPagoWebhookTests(TestCase):
             "/v1/payments/payment-123",
         )
 
-    @patch("billing.services.mercado_pago._request")
     def test_get_preapproval(self, mock_request):
         mock_request.return_value = {
             "id": "preapproval-123",
@@ -831,15 +913,15 @@ class MercadoPagoWebhookTests(TestCase):
             "/preapproval/preapproval-123",
         )
 
-    def test_get_order_requires_id(self):
+    def test_get_order_requires_id(self, mock_request):
         with self.assertRaises(MercadoPagoError):
             get_order("")
 
-    def test_get_payment_requires_id(self):
+    def test_get_payment_requires_id(self, mock_request):
         with self.assertRaises(MercadoPagoError):
             get_payment("")
 
-    def test_get_preapproval_requires_id(self):
+    def test_get_preapproval_requires_id(self, mock_request):
         with self.assertRaises(MercadoPagoError):
             get_preapproval("")
 

@@ -118,6 +118,11 @@ class Subscription(models.Model):
         blank=True,
         default="",
     )
+    customer_whatsapp = models.CharField(
+        max_length=20,
+        blank=True,
+        default="",
+    )
     plan = models.CharField(max_length=20, choices=PLAN_CHOICES)
     status = models.CharField(
         max_length=20,

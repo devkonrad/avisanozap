@@ -6,6 +6,8 @@ from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
+from urllib.parse import urlencode
+from django.urls import reverse
 
 def normalize_brazilian_phone(number: str) -> str:
     """Normalize a Brazilian mobile number to the full WhatsApp format."""
@@ -122,3 +124,82 @@ def send_whatsapp_poll(number: str, question: str, options: list[str]) -> bool:
 
     logger.info('WhatsApp poll sent successfully to %s.', number)
     return True
+
+
+
+def send_signup_continuation_message(subscription_id) -> bool:
+    """Send the signup continuation link for an active subscription."""
+    from billing.models import Subscription
+
+    try:
+        subscription = Subscription.objects.get(pk=subscription_id)
+    except Subscription.DoesNotExist:
+        logger.error(
+            "Cannot send signup link: subscription %s does not exist.",
+            subscription_id,
+        )
+        return False
+
+    if subscription.status != Subscription.STATUS_ACTIVE:
+        logger.warning(
+            "Cannot send signup link for inactive subscription %s.",
+            subscription_id,
+        )
+        return False
+
+    if subscription.professional_id:
+        logger.info(
+            "Signup already completed for subscription %s.",
+            subscription_id,
+        )
+        return False
+
+    if not subscription.customer_whatsapp:
+        logger.error(
+            "Cannot send signup link: subscription %s has no WhatsApp number.",
+            subscription_id,
+        )
+        return False
+
+    base_url = getattr(settings, "SITE_URL", "").rstrip("/")
+
+    if not base_url:
+        hosts = [
+            host
+            for host in settings.ALLOWED_HOSTS
+            if host not in {"*", "localhost", "127.0.0.1", "testserver"}
+        ]
+        if not hosts:
+            logger.error(
+                "Cannot send signup link: configure SITE_URL "
+                "or a public host in ALLOWED_HOSTS."
+            )
+            return False
+
+        base_url = f"https://{hosts[0]}"
+
+    query_string = urlencode({"subscription": str(subscription.pk)})
+    signup_url = (
+        f"{base_url}{reverse('accounts:signup')}?{query_string}"
+    )
+
+    message = (
+        "Olá! Seu pagamento foi confirmado e seu acesso ao AvisanoZap "
+        "está ativo.\n\n"
+        "Para concluir seu cadastro e começar a usar a plataforma, "
+        "acesse o link abaixo:\n"
+        f"{signup_url}\n\n"
+        "Use o mesmo e-mail informado na compra."
+    )
+
+    try:
+        return send_whatsapp_message(
+            subscription.customer_whatsapp,
+            message,
+        )
+    except (ValueError, TypeError):
+        logger.exception(
+            "Could not send signup link for subscription %s.",
+            subscription_id,
+        )
+        return False

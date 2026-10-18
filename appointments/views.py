@@ -68,13 +68,19 @@ def appointments_dashboard_view(request):
 
     paginator = Paginator(appointments, 20)
     page_obj = paginator.get_page(request.GET.get("page"))
+    profile = request.user.profile
 
     context = {
         "page_obj": page_obj,
         "client_name": client_name,
         "date_from": date_from,
         "date_to": date_to,
+        "profile": profile,
+        "whatsapp_connected": (
+            profile.whatsapp_session_status == "CONNECTED"
+        ),
     }
+
     return render(
         request,
         "appointments/dashboard.html",

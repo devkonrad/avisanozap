@@ -52,22 +52,16 @@ def checkout(request, plan_code):
 
     if profile:
         email = profile.user.email.strip().lower()
+        initial = {
+            "email": email,
+            "whatsapp_number": profile.whatsapp_number,
+        }
         email_form = CheckoutEmailForm(
-            initial={"email": email},
+            request.POST if request.method == "POST" else None,
+            initial=initial,
         )
     elif request.method == "POST":
         email_form = CheckoutEmailForm(request.POST)
-        if not email_form.is_valid():
-            return render(
-                request,
-                "billing/checkout_confirm.html",
-                {
-                    "plan": plan,
-                    "email_form": email_form,
-                },
-                status=400,
-            )
-        email = email_form.cleaned_data["email"]
     else:
         email_form = CheckoutEmailForm(
             initial={
@@ -76,14 +70,6 @@ def checkout(request, plan_code):
                     if request.user.is_authenticated
                     else ""
                 ),
-            },
-        )
-        return render(
-            request,
-            "billing/checkout_confirm.html",
-            {
-                "plan": plan,
-                "email_form": email_form,
             },
         )
 
@@ -99,6 +85,20 @@ def checkout(request, plan_code):
 
     if request.method != "POST":
         return redirect("home")
+
+    if not email_form.is_valid():
+        return render(
+            request,
+            "billing/checkout_confirm.html",
+            {
+                "plan": plan,
+                "email_form": email_form,
+            },
+            status=400,
+        )
+
+    email = email_form.cleaned_data["email"].strip().lower()
+    whatsapp_number = email_form.cleaned_data["whatsapp_number"]
 
     open_statuses = [
         Subscription.STATUS_PENDING,
@@ -138,6 +138,16 @@ def checkout(request, plan_code):
     if existing:
         subscription = existing
         provider = subscription.provider
+
+        subscription.customer_email = email
+        subscription.customer_whatsapp = whatsapp_number
+        subscription.save(
+            update_fields=[
+                "customer_email",
+                "customer_whatsapp",
+                "updated_at",
+            ],
+        )
     else:
         billing_settings = BillingSettings.objects.filter(
             pk=1,
@@ -169,6 +179,7 @@ def checkout(request, plan_code):
                 subscription = Subscription.objects.create(
                     professional=profile,
                     customer_email=email,
+                    customer_whatsapp=whatsapp_number,
                     plan=subscription_plan,
                     billing_plan=plan,
                     amount=plan.amount,
@@ -187,7 +198,10 @@ def checkout(request, plan_code):
         return redirect(subscription.provider_checkout_url)
 
     callback_url = request.build_absolute_uri(
-        reverse("home"),
+        reverse(
+            "billing:checkout_return",
+            kwargs={"subscription_id": subscription.id},
+        ),
     )
 
     try:
@@ -216,18 +230,15 @@ def checkout(request, plan_code):
         )
         return redirect("home")
 
-    checkout_id = checkout_data["id"]
-    checkout_url = checkout_data["url"]
-
-    subscription.provider_checkout_id = checkout_id
-    subscription.provider_checkout_url = checkout_url
+    subscription.provider_checkout_id = checkout_data["id"]
+    subscription.provider_checkout_url = checkout_data["url"]
 
     if (
         provider == PROVIDER_MERCADO_PAGO
         and plan.billing_type == BillingPlan.TYPE_MONTHLY
     ):
         subscription.provider_subscription_id = (
-            checkout_data.get("subscription_id", checkout_id)
+            checkout_data.get("subscription_id", checkout_data["id"])
         )
 
     subscription.save(
@@ -239,8 +250,26 @@ def checkout(request, plan_code):
         ],
     )
 
-    return redirect(checkout_url)
+    return redirect(subscription.provider_checkout_url)
 
+
+def checkout_return(request, subscription_id):
+    subscription = get_object_or_404(
+        Subscription,
+        pk=subscription_id,
+    )
+
+    return render(
+        request,
+        "billing/checkout_return.html",
+        {
+            "subscription": subscription,
+            "signup_url": (
+                f"{reverse('accounts:signup')}"
+                f"?subscription={subscription.id}"
+            ),
+        },
+    )
 
 @csrf_exempt
 def mercado_pago_webhook(request):
@@ -332,7 +361,7 @@ def mercado_pago_webhook(request):
     )
 
     try:
-        process_mercado_pago_order(order_id)
+        order_processed = process_mercado_pago_order(order_id)
     except MercadoPagoError as exc:
         event.status = MercadoPagoWebhookEvent.STATUS_FAILED
         event.error_message = str(exc)[:2000]
@@ -348,6 +377,19 @@ def mercado_pago_webhook(request):
             update_fields=["status", "error_message"],
         )
         logger.warning("Mercado Pago order rejected: %s", exc)
+        return HttpResponse(status=200)
+
+    if not order_processed:
+        event.status = MercadoPagoWebhookEvent.STATUS_RECEIVED
+        event.processed_at = None
+        event.error_message = ""
+        event.save(
+            update_fields=[
+                "status",
+                "processed_at",
+                "error_message",
+            ],
+        )
         return HttpResponse(status=200)
 
     event.status = MercadoPagoWebhookEvent.STATUS_PROCESSED
