@@ -1,0 +1,115 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Novo agendamento | AvisanoZap</title>
+    <link rel="stylesheet" href="{% static 'appointments/css/dashboard.css' %}">
+</head>
+<body>
+    <div class="dashboard">
+        {% include "appointments/includes/dashboard_header.html" %}
+
+        <main>
+            <section class="page-heading">
+                <div>
+                    <p class="eyebrow">GESTÃO</p>
+                    <h1>Novo agendamento</h1>
+                    <p class="page-description">
+                        Cadastre um atendimento diretamente pelo seu painel.
+                    </p>
+                </div>
+            </section>
+
+            {% if not services %}
+                <section class="empty-state">
+                    <div class="empty-state-icon" aria-hidden="true">＋</div>
+                    <h3>Cadastre um serviço primeiro</h3>
+                    <p>
+                        Para criar um agendamento, você precisa cadastrar
+                        pelo menos um serviço.
+                    </p>
+                    <a
+                        class="button button-primary"
+                        href="{% url 'service_create' %}"
+                    >
+                        Cadastrar serviço
+                    </a>
+                </section>
+            {% else %}
+                <section class="filter-panel form-card">
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+
+                        {% if form.non_field_errors %}
+                            <div class="form-errors">
+                                {{ form.non_field_errors }}
+                            </div>
+                        {% endif %}
+
+                        <div class="form-field profile-field">
+                            <label for="{{ form.client_name.id_for_label }}">
+                                {{ form.client_name.label }}
+                            </label>
+                            {{ form.client_name }}
+                            {% for error in form.client_name.errors %}
+                                <p class="field-error">{{ error }}</p>
+                            {% endfor %}
+                        </div>
+
+                        <div class="form-field profile-field">
+                            <label for="{{ form.client_whatsapp.id_for_label }}">
+                                {{ form.client_whatsapp.label }}
+                            </label>
+                            {{ form.client_whatsapp }}
+                            {% for error in form.client_whatsapp.errors %}
+                                <p class="field-error">{{ error }}</p>
+                            {% endfor %}
+                        </div>
+
+                        <div class="form-field profile-field">
+                            <label for="{{ form.service.id_for_label }}">
+                                {{ form.service.label }}
+                            </label>
+                            {{ form.service }}
+                            {% for error in form.service.errors %}
+                                <p class="field-error">{{ error }}</p>
+                            {% endfor %}
+                        </div>
+
+                        <div class="form-field profile-field">
+                            <label for="{{ form.start_datetime.id_for_label }}">
+                                {{ form.start_datetime.label }}
+                            </label>
+                            {{ form.start_datetime }}
+                            {% for error in form.start_datetime.errors %}
+                                <p class="field-error">{{ error }}</p>
+                            {% endfor %}
+                        </div>
+
+                        <div class="form-actions profile-actions">
+                            <button class="button button-primary" type="submit">
+                                Criar agendamento
+                            </button>
+                            <a
+                                class="button button-secondary"
+                                href="{% url 'appointments_dashboard' %}"
+                            >
+                                Cancelar
+                            </a>
+                        </div>
+                    </form>
+                </section>
+            {% endif %}
+        </main>
+
+        <footer class="dashboard-footer">
+            <p>
+                © {% now "Y" %} AvisanoZap.
+                Gestão de agendamentos simplificada.
+            </p>
+        </footer>
+    </div>
+</body>
+</html>

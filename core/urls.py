@@ -8,7 +8,12 @@ from appointments.views import (
     evolution_webhook_view,
     professional_profile_view,
     public_schedule_view,
+    service_create_view,
+    service_edit_view,
+    services_dashboard_view,
+    appointment_create_view,
 )
+
 from core.views import LandingPageView
 
 urlpatterns = [
@@ -36,6 +41,26 @@ urlpatterns = [
         "api/webhooks/evolution/",
         evolution_webhook_view,
         name="evolution_webhook",
+    ),
+    path(
+        "dashboard/services/",
+        services_dashboard_view,
+        name="services_dashboard",
+    ),
+    path(
+        "dashboard/services/new/",
+        service_create_view,
+        name="service_create",
+    ),
+    path(
+        "dashboard/services/<uuid:service_id>/edit/",
+        service_edit_view,
+        name="service_edit",
+    ),
+    path(
+        "dashboard/appointments/new/",
+        appointment_create_view,
+        name="appointment_create",
     ),
     path("<slug:slug>/", public_schedule_view, name="public_schedule"),
 ]

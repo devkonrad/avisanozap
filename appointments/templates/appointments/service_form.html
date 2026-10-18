@@ -1,0 +1,80 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ page_title }} | AvisanoZap</title>
+    <link rel="stylesheet" href="{% static 'appointments/css/dashboard.css' %}">
+</head>
+<body>
+    <div class="dashboard">
+        {% include "appointments/includes/dashboard_header.html" %}
+
+        <main>
+            <section class="page-heading">
+                <div>
+                    <p class="eyebrow">GESTÃO</p>
+                    <h1>{{ page_title }}</h1>
+                    <p class="page-description">
+                        Informe os dados do serviço oferecido.
+                    </p>
+                </div>
+            </section>
+
+            <section class="filter-panel form-card">
+                <form method="post" novalidate>
+                    {% csrf_token %}
+
+                    {% if form.non_field_errors %}
+                        <div class="form-errors">
+                            {{ form.non_field_errors }}
+                        </div>
+                    {% endif %}
+
+                    {% for field in form %}
+                        {% if not field.is_hidden %}
+                            <div class="form-field profile-field">
+                                <label for="{{ field.id_for_label }}">
+                                    {{ field.label }}
+                                </label>
+
+                                {{ field }}
+
+                                {% if field.help_text %}
+                                    <small>{{ field.help_text }}</small>
+                                {% endif %}
+
+                                {% for error in field.errors %}
+                                    <p class="field-error">{{ error }}</p>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            {{ field }}
+                        {% endif %}
+                    {% endfor %}
+
+                    <div class="form-actions profile-actions">
+                        <button class="button button-primary" type="submit">
+                            Salvar serviço
+                        </button>
+                        <a
+                            class="button button-secondary"
+                            href="{% url 'services_dashboard' %}"
+                        >
+                            Cancelar
+                        </a>
+                    </div>
+                </form>
+            </section>
+        </main>
+
+        <footer class="dashboard-footer">
+            <p>
+                © {% now "Y" %} AvisanoZap.
+                Gestão de agendamentos simplificada.
+            </p>
+        </footer>
+    </div>
+</body>
+</html>

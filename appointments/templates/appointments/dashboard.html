@@ -45,6 +45,9 @@
                     <a href="{% url 'appointments_dashboard' %}">
                         Agendamentos
                     </a>
+                    <a href="{% url 'services_dashboard' %}">
+                        Meus serviços
+                    </a>
                     <a href="{% url 'professional_profile' %}">
                         Meus dados
                     </a>
@@ -67,6 +70,27 @@
                     <p class="page-description">
                         Consulte e acompanhe os agendamentos dos seus clientes.
                     </p>
+                </div>
+
+                <div class="page-heading-actions">
+                    <a
+                        class="button button-secondary"
+                        href="{% url 'services_dashboard' %}"
+                    >
+                        Meus serviços
+                    </a>
+                    <a
+                        class="button button-secondary"
+                        href="{% url 'service_create' %}"
+                    >
+                        + Novo serviço
+                    </a>
+                    <a
+                        class="button button-primary"
+                        href="{% url 'appointment_create' %}"
+                    >
+                        + Novo agendamento
+                    </a>
                 </div>
             </section>
 
@@ -155,13 +179,18 @@
                                             às {{ appointment.start_datetime|date:"H:i" }}
                                         </p>
                                         <p class="appointment-service">
-                                            {{ appointment.service }}
+                                            {% if appointment.service %}
+                                                {{ appointment.service.name }}
+                                            {% else %}
+                                                Serviço não informado
+                                            {% endif %}
                                         </p>
                                         <p class="appointment-whatsapp">
                                             WhatsApp: {{ appointment.client_whatsapp }}
                                         </p>
                                     </div>
-                                </div>                                
+                                </div>
+
                                 <div class="appointment-meta">
                                     {% if appointment.status == "CONFIRMED" %}
                                         <span class="status-badge status-confirmed">
@@ -201,9 +230,13 @@
                     </div>
 
                     {% if page_obj.has_other_pages %}
-                        <nav class="pagination" aria-label="Paginação dos agendamentos">
+                        <nav
+                            class="pagination"
+                            aria-label="Paginação dos agendamentos"
+                        >
                             <div class="pagination-info">
-                                Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+                                Página {{ page_obj.number }}
+                                de {{ page_obj.paginator.num_pages }}
                             </div>
 
                             <div class="pagination-actions">
@@ -247,7 +280,10 @@
         </main>
 
         <footer class="dashboard-footer">
-            <p>© {% now "Y" %} AvisanoZap. Gestão de agendamentos simplificada.</p>
+            <p>
+                © {% now "Y" %} AvisanoZap.
+                Gestão de agendamentos simplificada.
+            </p>
         </footer>
     </div>
 

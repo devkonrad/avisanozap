@@ -1,0 +1,76 @@
+{% load static %}
+
+<header class="dashboard-header">
+    <div>
+        <a class="brand" href="{% url 'home' %}">AvisanoZap</a>
+        <p class="header-subtitle">Painel do profissional</p>
+    </div>
+
+    <div class="account-menu">
+        <div class="account-summary">
+            <span class="account-summary-label">Conectado como</span>
+            <strong>
+                {{ request.user.get_full_name|default:request.user.username }}
+            </strong>
+            <span>{{ request.user.email }}</span>
+        </div>
+
+        <button
+            class="button button-secondary menu-toggle"
+            type="button"
+            aria-expanded="false"
+            aria-controls="account-menu-items"
+        >
+            <span aria-hidden="true">&#9776;</span>
+            Menu
+        </button>
+
+        <nav class="account-menu-items" id="account-menu-items" hidden>
+            <div class="account-menu-user">
+                <strong>
+                    {{ request.user.get_full_name|default:request.user.username }}
+                </strong>
+                <span>{{ request.user.email }}</span>
+            </div>
+
+            <a href="{% url 'appointments_dashboard' %}">
+                Agendamentos
+            </a>
+            <a href="{% url 'services_dashboard' %}">
+                Meus serviços
+            </a>
+            <a href="{% url 'professional_profile' %}">
+                Meus dados
+            </a>
+
+            <form method="post" action="{% url 'accounts:logout' %}">
+                {% csrf_token %}
+                <button class="menu-logout" type="submit">
+                    Sair da conta
+                </button>
+            </form>
+        </nav>
+    </div>
+</header>
+
+<script>
+    const menuToggle = document.querySelector(".menu-toggle");
+    const menuItems = document.querySelector(".account-menu-items");
+
+    if (menuToggle && menuItems) {
+        menuToggle.addEventListener("click", () => {
+            const isExpanded =
+                menuToggle.getAttribute("aria-expanded") === "true";
+
+            menuToggle.setAttribute("aria-expanded", String(!isExpanded));
+            menuItems.hidden = isExpanded;
+        });
+
+        document.addEventListener("click", (event) => {
+            if (!event.target.closest(".account-menu")) {
+                menuItems.hidden = true;
+                menuToggle.setAttribute("aria-expanded", "false");
+            }
+        });
+    }
+</script>

@@ -1,6 +1,7 @@
 import json
 import logging
 import secrets
+from datetime import timedelta
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
@@ -13,9 +14,19 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
-from .forms import ProfessionalProfileUpdateForm
-from .models import Appointment, ProfessionalProfile, WhatsAppReminder
+from .forms import (
+    ProfessionalProfileUpdateForm,
+    ServiceForm,
+    DashboardAppointmentForm,
+)
+from .models import (
+    Appointment,
+    ProfessionalProfile,
+    Service,
+    WhatsAppReminder,
+)
 from .services import normalize_brazilian_phone, send_whatsapp_message
+from .tasks import send_appointment_notifications
 
 logger = logging.getLogger(__name__)
 
@@ -87,6 +98,91 @@ def appointments_dashboard_view(request):
         context,
     )
 
+
+@login_required
+def services_dashboard_view(request):
+    """List services belonging to the logged-in professional."""
+    profile = get_object_or_404(
+        ProfessionalProfile,
+        user=request.user,
+    )
+
+    services = profile.services.order_by("name")
+
+    return render(
+        request,
+        "appointments/services.html",
+        {
+            "profile": profile,
+            "services": services,
+        },
+    )
+
+
+@login_required
+def service_create_view(request):
+    """Create a service for the logged-in professional."""
+    profile = get_object_or_404(
+        ProfessionalProfile,
+        user=request.user,
+    )
+
+    if request.method == "POST":
+        form = ServiceForm(request.POST)
+
+        if form.is_valid():
+            service = form.save(commit=False)
+            service.professional = profile
+            service.save()
+
+            return redirect("services_dashboard")
+    else:
+        form = ServiceForm()
+
+    return render(
+        request,
+        "appointments/service_form.html",
+        {
+            "form": form,
+            "profile": profile,
+            "page_title": "Novo serviço",
+        },
+    )
+
+
+@login_required
+def service_edit_view(request, service_id):
+    """Edit a service belonging to the logged-in professional."""
+    profile = get_object_or_404(
+        ProfessionalProfile,
+        user=request.user,
+    )
+
+    service = get_object_or_404(
+        Service,
+        id=service_id,
+        professional=profile,
+    )
+
+    if request.method == "POST":
+        form = ServiceForm(request.POST, instance=service)
+
+        if form.is_valid():
+            form.save()
+            return redirect("services_dashboard")
+    else:
+        form = ServiceForm(instance=service)
+
+    return render(
+        request,
+        "appointments/service_form.html",
+        {
+            "form": form,
+            "profile": profile,
+            "service": service,
+            "page_title": "Editar serviço",
+        },
+    )
 
 @login_required
 @require_POST
@@ -401,3 +497,80 @@ def evolution_webhook_view(request):
         appointment.status,
     )
     return JsonResponse({"received": True})
+
+
+@login_required
+def appointment_create_view(request):
+    """Create an appointment from the professional dashboard."""
+    profile = get_object_or_404(
+        ProfessionalProfile,
+        user=request.user,
+    )
+    services = profile.services.all().order_by("name")
+
+    if not services.exists():
+        return render(
+            request,
+            "appointments/appointment_form.html",
+            {
+                "profile": profile,
+                "services": services,
+                "form": None,
+            },
+        )
+
+    if request.method == "POST":
+        form = DashboardAppointmentForm(
+            request.POST,
+            professional=profile,
+        )
+
+        if form.is_valid():
+            appointment = form.save(commit=False)
+            appointment.professional = profile
+            appointment.end_datetime = (
+                appointment.start_datetime
+                + timedelta(
+                    minutes=appointment.service.duration_minutes,
+                )
+            )
+            appointment.status = (
+                Appointment.STATUS_PENDING_CONFIRMATION
+            )
+
+            with transaction.atomic():
+                appointment.save()
+
+                reminder_time = (
+                    appointment.start_datetime - timedelta(hours=24)
+                )
+
+                if reminder_time > timezone.now():
+                    WhatsAppReminder.objects.create(
+                        appointment=appointment,
+                        scheduled_for=reminder_time,
+                        reminder_type="24H",
+                        status="PENDING",
+                    )
+
+                transaction.on_commit(
+                    lambda: send_appointment_notifications.delay(
+                        str(appointment.id),
+                    )
+                )
+
+            return redirect("appointments_dashboard")
+    else:
+        form = DashboardAppointmentForm(
+            professional=profile,
+        )
+
+    return render(
+        request,
+        "appointments/appointment_form.html",
+        {
+            "profile": profile,
+            "services": services,
+            "form": form,
+        },
+    )

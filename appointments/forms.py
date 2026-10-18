@@ -1,10 +1,14 @@
+from decimal import Decimal
+from .models import Appointment, Service
+
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
 from django.db import transaction
 
+from django.utils import timezone
 from .models import ProfessionalProfile
-
+from .services import normalize_brazilian_phone
 
 class ProfessionalSignUpForm(UserCreationForm):
     first_name = forms.CharField(
@@ -157,3 +161,137 @@ class ProfessionalProfileUpdateForm(forms.Form):
         )
 
         return self.profile
+
+
+class ServiceForm(forms.ModelForm):
+    class Meta:
+        model = Service
+        fields = (
+            "name",
+            "duration_minutes",
+            "price",
+            "is_active",
+        )
+        labels = {
+            "name": "Nome do serviço",
+            "duration_minutes": "Duração (minutos)",
+            "price": "Preço (R$)",
+            "is_active": "Serviço ativo",
+        }
+        widgets = {
+            "name": forms.TextInput(
+                attrs={
+                    "placeholder": "Ex.: Consulta inicial",
+                }
+            ),
+            "duration_minutes": forms.NumberInput(
+                attrs={
+                    "min": 1,
+                    "step": 1,
+                }
+            ),
+            "price": forms.NumberInput(
+                attrs={
+                    "min": "0.00",
+                    "step": "0.01",
+                }
+            ),
+            "is_active": forms.HiddenInput(),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        if not self.instance.pk:
+            self.fields["is_active"].initial = True
+
+    def clean_name(self):
+        name = self.cleaned_data["name"].strip()
+
+        if not name:
+            raise forms.ValidationError(
+                "Informe o nome do serviço."
+            )
+
+        return name
+
+    def clean_duration_minutes(self):
+        duration = self.cleaned_data["duration_minutes"]
+
+        if duration < 1:
+            raise forms.ValidationError(
+                "A duração deve ser de pelo menos 1 minuto."
+            )
+
+        return duration
+
+    def clean_price(self):
+        price = self.cleaned_data["price"]
+
+        if price < Decimal("0.00"):
+            raise forms.ValidationError(
+                "O preço não pode ser negativo."
+            )
+
+        return price
+
+
+class DashboardAppointmentForm(forms.ModelForm):
+    class Meta:
+        model = Appointment
+        fields = (
+            "client_name",
+            "client_whatsapp",
+            "service",
+            "start_datetime",
+        )
+        labels = {
+            "client_name": "Nome do cliente",
+            "client_whatsapp": "WhatsApp do cliente com DDD",
+            "service": "Serviço",
+            "start_datetime": "Data e horário",
+        }
+        widgets = {
+            "client_name": forms.TextInput(
+                attrs={"placeholder": "Nome completo do cliente"}
+            ),
+            "client_whatsapp": forms.TextInput(
+                attrs={"placeholder": "(11) 99999-9999"}
+            ),
+            "start_datetime": forms.DateTimeInput(
+                attrs={"type": "datetime-local"},
+                format="%Y-%m-%dT%H:%M",
+            ),
+        }
+
+    def __init__(self, *args, professional, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.professional = professional
+        self.fields["service"].queryset = (
+            Service.objects.filter(professional=professional)
+            .order_by("name")
+        )
+
+    def clean_client_name(self):
+        return self.cleaned_data["client_name"].strip()
+
+    def clean_client_whatsapp(self):
+        number = self.cleaned_data["client_whatsapp"]
+
+        try:
+            return normalize_brazilian_phone(number)
+        except ValueError as exc:
+            raise forms.ValidationError(
+                "Informe um número de WhatsApp brasileiro válido com DDD."
+            ) from exc
+
+    def clean_start_datetime(self):
+        start_datetime = self.cleaned_data["start_datetime"]
+
+        if timezone.is_naive(start_datetime):
+            return timezone.make_aware(
+                start_datetime,
+                timezone.get_current_timezone(),
+            )
+
+        return start_datetime

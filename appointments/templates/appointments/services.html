@@ -1,0 +1,110 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meus serviços | AvisanoZap</title>
+    <link rel="stylesheet" href="{% static 'appointments/css/dashboard.css' %}">
+</head>
+<body>
+    <div class="dashboard">
+        {% include "appointments/includes/dashboard_header.html" %}
+
+        <main>
+            <section class="page-heading">
+                <div>
+                    <p class="eyebrow">GESTÃO</p>
+                    <h1>Meus serviços</h1>
+                    <p class="page-description">
+                        Cadastre e gerencie os serviços oferecidos aos seus clientes.
+                    </p>
+                </div>
+
+                <div class="page-heading-actions">
+                    <a
+                        class="button button-primary"
+                        href="{% url 'service_create' %}"
+                    >
+                        + Novo serviço
+                    </a>
+                </div>
+            </section>
+
+            {% if services %}
+                <section class="services-section">
+                    <div class="section-heading">
+                        <h2>Seus serviços</h2>
+                        <span class="result-count">
+                            {{ services|length }}
+                            {% if services|length == 1 %}
+                                serviço
+                            {% else %}
+                                serviços
+                            {% endif %}
+                        </span>
+                    </div>
+
+                    <div class="service-list">
+                        {% for service in services %}
+                            <article class="service-card">
+                                <div class="service-details">
+                                    <h3>{{ service.name }}</h3>
+                                    <p>
+                                        Duração:
+                                        {{ service.duration_minutes }} minutos
+                                    </p>
+                                    <p class="service-price">
+                                        R$ {{ service.price|floatformat:2 }}
+                                    </p>
+                                </div>
+
+                                <div class="service-actions">
+                                    {% if service.is_active %}
+                                        <span class="status-badge status-confirmed">
+                                            Ativo
+                                        </span>
+                                    {% else %}
+                                        <span class="status-badge status-canceled">
+                                            Inativo
+                                        </span>
+                                    {% endif %}
+
+                                    <a
+                                        class="button button-secondary"
+                                        href="{% url 'service_edit' service.id %}"
+                                    >
+                                        Editar
+                                    </a>
+                                </div>
+                            </article>
+                        {% endfor %}
+                    </div>
+                </section>
+            {% else %}
+                <section class="empty-state">
+                    <div class="empty-state-icon" aria-hidden="true">＋</div>
+                    <h3>Você ainda não cadastrou serviços</h3>
+                    <p>
+                        Cadastre seu primeiro serviço para começar a organizar
+                        seus atendimentos.
+                    </p>
+                    <a
+                        class="button button-primary"
+                        href="{% url 'service_create' %}"
+                    >
+                        Cadastrar primeiro serviço
+                    </a>
+                </section>
+            {% endif %}
+        </main>
+
+        <footer class="dashboard-footer">
+            <p>
+                © {% now "Y" %} AvisanoZap.
+                Gestão de agendamentos simplificada.
+            </p>
+        </footer>
+    </div>
+</body>
+</html>
