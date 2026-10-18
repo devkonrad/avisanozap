@@ -2,6 +2,7 @@ from urllib.parse import quote
 import re
 
 from django.conf import settings
+from django.shortcuts import redirect
 from django.views.generic import TemplateView
 
 from billing.models import BillingPlan
@@ -9,6 +10,12 @@ from billing.models import BillingPlan
 
 class LandingPageView(TemplateView):
     template_name = "landing/home.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.is_authenticated:
+            return redirect("appointments_dashboard")
+
+        return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

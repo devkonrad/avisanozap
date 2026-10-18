@@ -16,6 +16,12 @@ class SignUpView(FormView):
     template_name = "registration/signup.html"
     form_class = ProfessionalSignUpForm
 
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.is_authenticated:
+            return redirect("appointments_dashboard")
+
+        return super().dispatch(request, *args, **kwargs)
+
     def get_subscription_id(self):
         return (
             self.request.POST.get("subscription", "").strip()
