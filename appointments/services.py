@@ -1,13 +1,15 @@
 import logging
 import re
+from urllib.parse import urlencode
 
 import requests
 from django.conf import settings
+from django.urls import reverse
 
 logger = logging.getLogger(__name__)
 
-from urllib.parse import urlencode
-from django.urls import reverse
+PUBLIC_BASE_URL = "https://www.avisanozap.com.br"
+
 
 def normalize_brazilian_phone(number: str) -> str:
     """Normalize a Brazilian mobile number to the full WhatsApp format."""
@@ -34,20 +36,24 @@ def normalize_brazilian_phone(number: str) -> str:
 
 
 def send_whatsapp_message(number: str, text: str) -> bool:
-    number = normalize_brazilian_phone(number)
-
     """Send a text message through the Evolution API."""
+    try:
+        number = normalize_brazilian_phone(number)
+    except (ValueError, TypeError):
+        logger.exception("Invalid WhatsApp number.")
+        return False
+
     url = (
         f'{settings.EVOLUTION_API_URL.rstrip("/")}'
         f'/message/sendText/{settings.EVOLUTION_INSTANCE_NAME}'
     )
     headers = {
-        'apikey': settings.EVOLUTION_API_KEY,
-        'Content-Type': 'application/json',
+        "apikey": settings.EVOLUTION_API_KEY,
+        "Content-Type": "application/json",
     }
     payload = {
-        'number': number,
-        'text': text,
+        "number": number,
+        "text": text,
     }
 
     try:
@@ -59,44 +65,49 @@ def send_whatsapp_message(number: str, text: str) -> bool:
         )
     except requests.RequestException:
         logger.exception(
-            'Evolution API request failed for number %s.',
+            "Evolution API request failed for number %s.",
             number,
         )
         return False
 
     if not response.ok:
         logger.error(
-            'Evolution API returned HTTP %s for number %s: %s',
+            "Evolution API returned HTTP %s for number %s: %s",
             response.status_code,
             number,
             response.text[:1000],
         )
         return False
 
-    logger.info(
-        'WhatsApp message sent successfully to %s.',
-        number,
-    )
+    logger.info("WhatsApp message sent successfully to %s.", number)
     return True
 
 
-def send_whatsapp_poll(number: str, question: str, options: list[str]) -> bool:
-    number = normalize_brazilian_phone(number)
-    
+def send_whatsapp_poll(
+    number: str,
+    question: str,
+    options: list[str],
+) -> bool:
     """Send a single-choice poll through the Evolution API."""
+    try:
+        number = normalize_brazilian_phone(number)
+    except (ValueError, TypeError):
+        logger.exception("Invalid WhatsApp number for poll.")
+        return False
+
     url = (
         f'{settings.EVOLUTION_API_URL.rstrip("/")}'
         f'/message/sendPoll/{settings.EVOLUTION_INSTANCE_NAME}'
     )
     headers = {
-        'apikey': settings.EVOLUTION_API_KEY,
-        'Content-Type': 'application/json',
+        "apikey": settings.EVOLUTION_API_KEY,
+        "Content-Type": "application/json",
     }
     payload = {
-        'number': number,
-        'name': question,
-        'selectableCount': 1,
-        'values': options,
+        "number": number,
+        "name": question,
+        "selectableCount": 1,
+        "values": options,
     }
 
     try:
@@ -108,23 +119,22 @@ def send_whatsapp_poll(number: str, question: str, options: list[str]) -> bool:
         )
     except requests.RequestException:
         logger.exception(
-            'Evolution API poll request failed for number %s.',
+            "Evolution API poll request failed for number %s.",
             number,
         )
         return False
 
     if not response.ok:
         logger.error(
-            'Evolution API returned HTTP %s when sending poll to %s: %s',
+            "Evolution API returned HTTP %s when sending poll to %s: %s",
             response.status_code,
             number,
             response.text[:1000],
         )
         return False
 
-    logger.info('WhatsApp poll sent successfully to %s.', number)
+    logger.info("WhatsApp poll sent successfully to %s.", number)
     return True
-
 
 
 def send_signup_continuation_message(subscription_id) -> bool:
@@ -161,26 +171,10 @@ def send_signup_continuation_message(subscription_id) -> bool:
         )
         return False
 
-    base_url = getattr(settings, "SITE_URL", "").rstrip("/")
-
-    if not base_url:
-        hosts = [
-            host
-            for host in settings.ALLOWED_HOSTS
-            if host not in {"*", "localhost", "127.0.0.1", "testserver"}
-        ]
-        if not hosts:
-            logger.error(
-                "Cannot send signup link: configure SITE_URL "
-                "or a public host in ALLOWED_HOSTS."
-            )
-            return False
-
-        base_url = f"https://{hosts[0]}"
-
     query_string = urlencode({"subscription": str(subscription.pk)})
     signup_url = (
-        f"{base_url}{reverse('accounts:signup')}?{query_string}"
+        f"{PUBLIC_BASE_URL}{reverse('accounts:signup')}?"
+        f"{query_string}"
     )
 
     message = (
@@ -192,14 +186,7 @@ def send_signup_continuation_message(subscription_id) -> bool:
         "Use o mesmo e-mail informado na compra."
     )
 
-    try:
-        return send_whatsapp_message(
-            subscription.customer_whatsapp,
-            message,
-        )
-    except (ValueError, TypeError):
-        logger.exception(
-            "Could not send signup link for subscription %s.",
-            subscription_id,
-        )
-        return False
+    return send_whatsapp_message(
+        subscription.customer_whatsapp,
+        message,
+    )

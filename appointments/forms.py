@@ -35,6 +35,20 @@ class ProfessionalSignUpForm(UserCreationForm):
             "username": "Nome de usuário",
         }
 
+    def __init__(self, *args, subscription=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.subscription = subscription
+
+        if subscription and not subscription.professional_id:
+            self.initial["email"] = subscription.customer_email
+            self.fields["email"].widget.attrs["readonly"] = True
+
+            if subscription.customer_whatsapp:
+                self.initial["whatsapp_number"] = (
+                    subscription.customer_whatsapp
+                )
+                self.fields["whatsapp_number"].widget.attrs["readonly"] = True
+
     def clean_email(self):
         email = self.cleaned_data["email"].strip().lower()
 
@@ -143,4 +157,3 @@ class ProfessionalProfileUpdateForm(forms.Form):
         )
 
         return self.profile
-

@@ -30,7 +30,23 @@
             border: 1px solid #ccd5d0;
             border-radius: 8px;
         }
-        .helptext, ul { font-size: 13px; color: #68756e; }
+        input:disabled {
+            background: #f0f3f1;
+            color: #526159;
+            cursor: not-allowed;
+            opacity: 1;
+        }
+        .helptext, ul {
+            font-size: 13px;
+            color: #68756e;
+        }
+        .notice {
+            padding: 12px;
+            border-radius: 8px;
+            background: #f0f7f3;
+            font-size: 14px;
+            line-height: 1.5;
+        }
         button {
             width: 100%;
             padding: 13px;
@@ -50,6 +66,13 @@
     <main>
         <h1>Crie sua conta</h1>
         <p>Cadastre seu perfil profissional para começar.</p>
+
+        {% if subscription_id %}
+            <p class="notice">
+                Seu e-mail e WhatsApp foram preenchidos com os dados
+                informados na compra e não podem ser alterados neste cadastro.
+            </p>
+        {% endif %}
 
         <form method="post">
             {% csrf_token %}
@@ -74,5 +97,4 @@
         </p>
     </main>
 </body>
-
 </html>

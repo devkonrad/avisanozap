@@ -3,7 +3,6 @@ from django.contrib.auth.views import LoginView, LogoutView
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.shortcuts import redirect
-from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.generic import FormView
 
@@ -17,23 +16,43 @@ class SignUpView(FormView):
     template_name = "registration/signup.html"
     form_class = ProfessionalSignUpForm
 
+    def get_subscription_id(self):
+        return (
+            self.request.POST.get("subscription", "").strip()
+            or self.request.GET.get("subscription", "").strip()
+        )
+
+    def get_subscription(self):
+        subscription_id = self.get_subscription_id()
+
+        if not subscription_id:
+            return None
+
+        try:
+            return Subscription.objects.get(pk=subscription_id)
+        except (
+            Subscription.DoesNotExist,
+            ValueError,
+            ValidationError,
+        ):
+            return None
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["subscription"] = self.get_subscription()
+        return kwargs
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["next"] = (
             self.request.POST.get("next")
             or self.request.GET.get("next", "")
         )
-        context["subscription_id"] = (
-            self.request.POST.get("subscription")
-            or self.request.GET.get("subscription", "")
-        )
+        context["subscription_id"] = self.get_subscription_id()
         return context
 
     def form_valid(self, form):
-        subscription_id = (
-            self.request.POST.get("subscription", "").strip()
-            or self.request.GET.get("subscription", "").strip()
-        )
+        subscription_id = self.get_subscription_id()
 
         with transaction.atomic():
             subscription = None
@@ -55,9 +74,7 @@ class SignUpView(FormView):
                     )
                     return self.form_invalid(form)
 
-                email = form.cleaned_data["email"].strip().lower()
-
-                if subscription.status != "ACTIVE":
+                if subscription.status != Subscription.STATUS_ACTIVE:
                     form.add_error(
                         None,
                         "Sua assinatura ainda não foi confirmada. "
@@ -73,12 +90,32 @@ class SignUpView(FormView):
                     )
                     return self.form_invalid(form)
 
-                if subscription.customer_email.strip().lower() != email:
+                email = form.cleaned_data["email"].strip().lower()
+                subscription_email = (
+                    subscription.customer_email.strip().lower()
+                )
+
+                if email != subscription_email:
                     form.add_error(
                         "email",
                         "Use o mesmo e-mail informado na compra.",
                     )
                     return self.form_invalid(form)
+
+                if subscription.customer_whatsapp:
+                    whatsapp_number = (
+                        form.cleaned_data["whatsapp_number"].strip()
+                    )
+                    subscription_whatsapp = (
+                        subscription.customer_whatsapp.strip()
+                    )
+
+                    if whatsapp_number != subscription_whatsapp:
+                        form.add_error(
+                            "whatsapp_number",
+                            "Use o WhatsApp informado na compra.",
+                        )
+                        return self.form_invalid(form)
 
             user = form.save()
             profile = ProfessionalProfile.objects.get(user=user)
