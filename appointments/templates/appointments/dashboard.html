@@ -60,25 +60,6 @@
         </header>
 
         <main>
-            <section class="filter-panel">
-                <h2>Vamos ativar seu AvisanoZap?</h2>
-
-                {% if whatsapp_connected %}
-                    <p>Seu WhatsApp está conectado.</p>
-                {% else %}
-                    <p>
-                        Seu cadastro está pronto. Para começar a usar
-                        os lembretes automáticos, configure seu WhatsApp.
-                    </p>
-                    <a
-                        class="button button-primary"
-                        href="{% url 'professional_profile' %}"
-                    >
-                        Conferir meus dados
-                    </a>
-                {% endif %}
-            </section>
-
             <section class="page-heading">
                 <div>
                     <p class="eyebrow">GESTÃO</p>
