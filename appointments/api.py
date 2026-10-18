@@ -1,5 +1,7 @@
 
-from datetime import timedelta
+from zoneinfo import ZoneInfo
+from django.conf import settings
+from datetime import datetime, timedelta
 
 from django.db import transaction
 from django.shortcuts import get_object_or_404
@@ -57,12 +59,24 @@ def create_appointment(request, payload: AppointmentCreateSchema):
             )
         }
 
-    if payload.start_datetime <= timezone.now():
+    brazil_timezone = ZoneInfo("America/Sao_Paulo")
+    start_datetime = payload.start_datetime
+
+    if timezone.is_naive(start_datetime):
+        start_datetime = start_datetime.replace(
+            tzinfo=brazil_timezone,
+        )
+    else:
+        start_datetime = start_datetime.astimezone(
+            brazil_timezone,
+        )
+
+    if start_datetime <= timezone.now():
         return 400, {
-            'detail': 'Escolha uma data e um horário futuros.'
+            "detail": "Escolha uma data e um horário futuros."
         }
 
-    end_datetime = payload.start_datetime + timedelta(
+    end_datetime = start_datetime + timedelta(
         minutes=service.duration_minutes,
     )
 
@@ -72,7 +86,7 @@ def create_appointment(request, payload: AppointmentCreateSchema):
             service=service,
             client_name=payload.client_name.strip(),
             client_whatsapp=client_whatsapp,
-            start_datetime=payload.start_datetime,
+            start_datetime=start_datetime,
             end_datetime=end_datetime,
             status=Appointment.STATUS_PENDING_CONFIRMATION,
         )

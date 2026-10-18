@@ -424,7 +424,7 @@
                 service_id: document.getElementById('service-select').value,
                 client_name: document.getElementById('client-name').value.trim(),
                 client_whatsapp: phoneDigits,
-                start_datetime: new Date(datetimeInput.value).toISOString(),
+                start_datetime: datetimeInput.value,
             };
 
             submitButton.disabled = true;

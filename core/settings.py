@@ -147,3 +147,6 @@ WHATSAPP_SUPPORT_PHONE = os.environ.get(
 LOGIN_URL = "/accounts/login/"
 LOGIN_REDIRECT_URL = "/"
 LOGOUT_REDIRECT_URL = "/"
+
+TIME_ZONE = "America/Sao_Paulo"
+USE_TZ = True
