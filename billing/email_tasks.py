@@ -32,7 +32,7 @@ def send_payment_receipt(payment_id):
         try:
             payment = (
                 Payment.objects
-                .select_for_update()
+                .select_for_update(of=("self",))
                 .select_related(
                     "subscription",
                     "subscription__professional",
