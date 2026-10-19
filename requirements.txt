@@ -8,3 +8,4 @@ django-cors-headers>=4.3.0
 requests>=2.31.1
 whitenoise>=6.6.0,<7.0
 gunicorn>=23.0,<24.0
+Jinja2>=3.1,<4.0

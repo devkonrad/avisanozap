@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from celery.schedules import crontab
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -105,6 +106,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "appointments.tasks.process_pending_reminders",
         "schedule": 60.0,
     },
+    "subscription-expiration-reminders-daily": {
+        "task": "billing.reminder_tasks.find_subscriptions_near_expiration",
+        "schedule": crontab(hour=10, minute=0),
+    },
 }
 
 # Evolution API settings
@@ -150,3 +155,32 @@ LOGOUT_REDIRECT_URL = "/"
 
 TIME_ZONE = "America/Sao_Paulo"
 USE_TZ = True
+
+
+# Email settings
+EMAIL_HOST = os.getenv("EMAIL_HOST", "smtp.gmail.com")
+EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
+EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "true").lower() in (
+    "1",
+    "true",
+    "yes",
+)
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
+DEFAULT_FROM_EMAIL = os.getenv(
+    "DEFAULT_FROM_EMAIL",
+    "AvisanoZap <no-reply@avisanozap.com.br>",
+)
+EMAIL_TIMEOUT = int(os.getenv("EMAIL_TIMEOUT", "10"))
+
+SITE_URL = os.getenv(
+    "SITE_URL",
+    "http://localhost:8000",
+).rstrip("/")
+
+if EMAIL_HOST_USER and EMAIL_HOST_PASSWORD:
+    EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+elif DEBUG:
+    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+else:
+    EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"

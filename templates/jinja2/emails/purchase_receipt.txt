@@ -1,0 +1,12 @@
+Pagamento confirmado
+
+Olá, {{ name }}!
+
+Confirmamos o recebimento do seu pagamento no AvisanoZap.
+
+Plano: {{ plan_name }}
+Valor: {{ amount }}
+Data do pagamento: {{ paid_at }}
+{% if expires_at %}Acesso válido até: {{ expires_at }}{% endif %}
+
+Obrigado por escolher o AvisanoZap!

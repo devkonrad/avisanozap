@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="pt-BR">
+<body>
+  <h1>Pagamento confirmado</h1>
+  <p>Olá, {{ name }}!</p>
+  <p>Confirmamos o recebimento do seu pagamento no AvisanoZap.</p>
+  <ul>
+    <li>Plano: {{ plan_name }}</li>
+    <li>Valor: {{ amount }}</li>
+    <li>Data do pagamento: {{ paid_at }}</li>
+    {% if expires_at %}
+    <li>Acesso válido até: {{ expires_at }}</li>
+    {% endif %}
+  </ul>
+  <p>Obrigado por escolher o AvisanoZap!</p>
+</body>
+</html>

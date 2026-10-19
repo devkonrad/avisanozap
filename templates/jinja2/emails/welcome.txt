@@ -1,0 +1,8 @@
+Bem-vindo ao AvisanoZap, {{ name }}!
+
+Sua conta foi criada com sucesso.
+
+Acesse seu painel:
+{{ dashboard_url }}
+
+Equipe AvisanoZap

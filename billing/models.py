@@ -159,7 +159,10 @@ class Subscription(models.Model):
         null=True,
         blank=True,
     )
-
+    expiration_reminder_sent_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
     started_at = models.DateTimeField(null=True, blank=True)
     expires_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -251,6 +254,10 @@ class Payment(models.Model):
         max_length=20,
         choices=STATUS_CHOICES,
         default=STATUS_PENDING,
+    )
+    receipt_email_sent_at = models.DateTimeField(
+        null=True,
+        blank=True,
     )
     due_date = models.DateField(null=True, blank=True)
     paid_at = models.DateTimeField(null=True, blank=True)

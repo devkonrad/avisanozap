@@ -10,7 +10,7 @@ from billing.models import Subscription
 
 from .forms import ProfessionalSignUpForm
 from .models import ProfessionalProfile
-
+from appointments.email_tasks import send_welcome_email
 
 class SignUpView(FormView):
     template_name = "registration/signup.html"
@@ -125,6 +125,10 @@ class SignUpView(FormView):
 
             user = form.save()
             profile = ProfessionalProfile.objects.get(user=user)
+
+            transaction.on_commit(
+                lambda: send_welcome_email.delay(str(profile.pk))
+            )
 
             if subscription:
                 subscription.professional = profile

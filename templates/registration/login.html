@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -62,9 +61,17 @@
             <button type="submit">Entrar</button>
         </form>
 
-        <p>Ainda não tem conta?
+        <p>
+            <a href="{% url 'accounts:password_reset' %}">
+                Esqueci minha senha
+            </a>
+        </p>
+
+        <p>
+            Ainda não tem conta?
             <a href="{% url 'accounts:signup' %}">Cadastre-se</a>
         </p>
+
         <p><a href="{% url 'home' %}">Voltar ao início</a></p>
     </main>
 </body>

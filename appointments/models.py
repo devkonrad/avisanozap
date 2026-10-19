@@ -23,6 +23,10 @@ class ProfessionalProfile(models.Model):
         max_length=20,
         default="DISCONNECTED",
     )
+    welcome_email_sent_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

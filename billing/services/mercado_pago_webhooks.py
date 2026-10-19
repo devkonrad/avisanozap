@@ -12,7 +12,7 @@ from billing.models import (
     Subscription,
 )
 from billing.services.mercado_pago import get_order
-
+from billing.email_tasks import send_payment_receipt
 
 class MercadoPagoWebhookProcessingError(Exception):
     """Raised when a Mercado Pago order cannot be safely processed."""
@@ -190,6 +190,14 @@ def process_mercado_pago_order(order_id):
                 lambda: send_signup_continuation_message(
                     subscription_id
                 )
+            )
+
+        # Send receipt email
+        if not payment.receipt_email_sent_at:
+            payment_id = str(payment.pk)
+
+            transaction.on_commit(
+                lambda: send_payment_receipt.delay(payment_id)
             )
 
         return created
