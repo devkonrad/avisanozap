@@ -135,3 +135,59 @@ class WhatsAppReminder(models.Model):
         default="PENDING",
     )
     sent_at = models.DateTimeField(null=True, blank=True)
+
+
+class ReminderTestConfiguration(models.Model):
+    """Configuration for periodic WhatsApp test messages."""
+
+    id = models.PositiveSmallIntegerField(primary_key=True, default=1, editable=False)
+    enabled = models.BooleanField(
+        default=False,
+        verbose_name="Teste periódico ativo",
+    )
+    destination_phone = models.CharField(
+        max_length=20,
+        blank=True,
+        verbose_name="WhatsApp de destino",
+        help_text="Número que receberá as mensagens de teste.",
+    )
+    interval_minutes = models.PositiveIntegerField(
+        default=15,
+        validators=[
+            MinValueValidator(1),
+            MaxValueValidator(1440),
+        ],
+        verbose_name="Intervalo em minutos",
+        help_text="Valor entre 1 e 1440 minutos.",
+    )
+    last_attempt_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        editable=False,
+        verbose_name="Última tentativa",
+    )
+    last_success_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        editable=False,
+        verbose_name="Último envio bem-sucedido",
+    )
+    last_result = models.CharField(
+        max_length=255,
+        blank=True,
+        default="Ainda não executado.",
+        editable=False,
+        verbose_name="Resultado da última tentativa",
+    )
+
+    class Meta:
+        verbose_name = "Configuração do teste de lembretes"
+        verbose_name_plural = "Configuração do teste de lembretes"
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        state = "ativo" if self.enabled else "inativo"
+        return f"Teste periódico de WhatsApp ({state})"

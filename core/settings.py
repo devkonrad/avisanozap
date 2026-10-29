@@ -106,6 +106,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "appointments.tasks.process_pending_reminders",
         "schedule": 60.0,
     },
+    "periodic-whatsapp-reminder-test": {
+        "task": "appointments.tasks.send_reminder_test_message",
+        "schedule": 60.0,
+    },
     "subscription-expiration-reminders-daily": {
         "task": "billing.reminder_tasks.find_subscriptions_near_expiration",
         "schedule": crontab(hour=10, minute=0),

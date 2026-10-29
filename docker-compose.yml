@@ -62,6 +62,29 @@ services:
       - db
       - redis
 
+  celery_beat:
+    build: .
+    command: celery -A core beat -l info
+    restart: unless-stopped
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgres://saas_user:saas_pass@db:5432/saas_db
+      POSTGRES_DB: saas_db
+      POSTGRES_USER: saas_user
+      POSTGRES_PASSWORD: saas_pass
+      PYTHONPATH: /app
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      EVOLUTION_API_URL: http://whatsapp_api:8080
+      EVOLUTION_API_KEY: ${EVOLUTION_API_KEY}
+      EVOLUTION_INSTANCE_NAME: avisanozap
+    depends_on:
+      - db
+      - redis
+
   whatsapp_api:
     image: evoapicloud/evolution-api:v2.3.7
     container_name: avisanozap_whatsapp_api_1

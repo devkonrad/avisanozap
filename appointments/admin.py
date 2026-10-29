@@ -5,6 +5,7 @@ from .models import (
     Appointment,
     Availability,
     ProfessionalProfile,
+    ReminderTestConfiguration,
     Service,
     WhatsAppReminder,
 )
@@ -45,6 +46,40 @@ class AppointmentAdmin(admin.ModelAdmin):
         return timezone.localtime(obj.end_datetime).strftime(
             "%d/%m/%Y %H:%M"
         )
+
+
+@admin.register(ReminderTestConfiguration)
+class ReminderTestConfigurationAdmin(admin.ModelAdmin):
+    list_display = (
+        "enabled",
+        "destination_phone",
+        "interval_minutes",
+        "last_attempt_at",
+        "last_success_at",
+        "last_result",
+    )
+    fields = (
+        "enabled",
+        "destination_phone",
+        "interval_minutes",
+        "last_attempt_at",
+        "last_success_at",
+        "last_result",
+    )
+    readonly_fields = (
+        "last_attempt_at",
+        "last_success_at",
+        "last_result",
+    )
+
+    def has_add_permission(self, request):
+        return (
+            super().has_add_permission(request)
+            and not ReminderTestConfiguration.objects.exists()
+        )
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 admin.site.register(Availability)
