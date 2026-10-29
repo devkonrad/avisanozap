@@ -125,6 +125,7 @@ def process_pending_reminders():
             "appointment",
             "appointment__service",
             "appointment__professional",
+            "appointment__professional__user",
         )
     )
 
@@ -141,12 +142,37 @@ def process_pending_reminders():
                 appointment.start_datetime
             ).strftime("%d/%m/%Y às %H:%M")
 
+            professional = appointment.professional
+            professional_name = (
+                professional.user.get_full_name()
+                or professional.user.username
+                if professional.user_id
+                else professional.slug
+            )
+
+            if professional.whatsapp_number:
+                professional_whatsapp = "".join(
+                    character
+                    for character in professional.whatsapp_number
+                    if character.isdigit()
+                )
+                contact_message = (
+                    f"Entre em contato com o profissional "
+                    f"*{professional_name}* pelo WhatsApp:\n"
+                    f"https://wa.me/{professional_whatsapp}"
+                )
+            else:
+                contact_message = (
+                    f"Para reagendar ou desmarcar, entre em contato "
+                    f"diretamente com o profissional "
+                    f"*{professional_name}*."
+                )
+
             message = (
                 f"Olá, {appointment.client_name}! 👋\n\n"
                 f"Passando para lembrar do seu agendamento de "
                 f"*{service_name}* para *{date_formatted}*.\n\n"
-                "Caso precise reagendar ou desmarcar, entre em "
-                "contato conosco."
+                f"{contact_message}"
             )
 
             success = send_whatsapp_message(
