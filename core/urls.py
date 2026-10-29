@@ -1,9 +1,12 @@
+
 from django.contrib import admin
+from django.http import HttpResponse
 from django.urls import include, path
 
 from appointments.api import api
 from appointments.views import (
     appointments_dashboard_view,
+    appointment_create_view,
     cancel_appointment_view,
     evolution_webhook_view,
     professional_profile_view,
@@ -11,13 +14,25 @@ from appointments.views import (
     service_create_view,
     service_edit_view,
     services_dashboard_view,
-    appointment_create_view,
 )
 
 from core.views import LandingPageView
 
+
+def google_site_verification_view(request):
+    return HttpResponse(
+        "google-site-verification: googled8a925164540d992.html",
+        content_type="text/plain",
+    )
+
+
 urlpatterns = [
     path("", LandingPageView.as_view(), name="home"),
+    path(
+        "googled8a925164540d992.html",
+        google_site_verification_view,
+        name="google_site_verification",
+    ),
     path("admin/", admin.site.urls),
     path("api/", api.urls),
     path("accounts/", include("appointments.auth_urls")),
