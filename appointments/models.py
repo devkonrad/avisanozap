@@ -113,8 +113,11 @@ class WhatsAppReminder(models.Model):
     REMINDER_TYPES = [
         ("IMMEDIATE", "Confirmação Imediata"),
         ("24H", "Lembrete 24h"),
+        ("12H", "Lembrete 12h"),
+        ("6H", "Lembrete 6h"),
         ("2H", "Lembrete 2h"),
     ]
+
     STATUS_CHOICES = [
         ("PENDING", "Pendente"),
         ("SENT", "Enviado"),

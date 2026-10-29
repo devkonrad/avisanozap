@@ -541,17 +541,26 @@ def appointment_create_view(request):
             with transaction.atomic():
                 appointment.save()
 
-                reminder_time = (
-                    appointment.start_datetime - timedelta(hours=24)
+                now = timezone.now()
+                reminder_intervals = (
+                    ("24H", 24),
+                    ("12H", 12),
+                    ("6H", 6),
                 )
 
-                if reminder_time > timezone.now():
-                    WhatsAppReminder.objects.create(
-                        appointment=appointment,
-                        scheduled_for=reminder_time,
-                        reminder_type="24H",
-                        status="PENDING",
+                for reminder_type, hours_before in reminder_intervals:
+                    reminder_time = (
+                        appointment.start_datetime
+                        - timedelta(hours=hours_before)
                     )
+
+                    if reminder_time > now:
+                        WhatsAppReminder.objects.create(
+                            appointment=appointment,
+                            scheduled_for=reminder_time,
+                            reminder_type=reminder_type,
+                            status="PENDING",
+                        )
 
                 transaction.on_commit(
                     lambda: send_appointment_notifications.delay(
