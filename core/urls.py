@@ -1,5 +1,6 @@
 
 from django.contrib import admin
+from django.contrib.sitemaps.views import sitemap
 from django.http import HttpResponse
 from django.urls import include, path
 
@@ -15,8 +16,17 @@ from appointments.views import (
     service_edit_view,
     services_dashboard_view,
 )
+from core.sitemaps import (
+    ProfessionalProfileSitemap,
+    StaticViewSitemap,
+)
+from core.views import LandingPageView, robots_txt_view
 
-from core.views import LandingPageView
+
+sitemaps = {
+    "static": StaticViewSitemap,
+    "professionals": ProfessionalProfileSitemap,
+}
 
 
 def google_site_verification_view(request):
@@ -28,6 +38,13 @@ def google_site_verification_view(request):
 
 urlpatterns = [
     path("", LandingPageView.as_view(), name="home"),
+    path(
+        "sitemap.xml",
+        sitemap,
+        {"sitemaps": sitemaps},
+        name="django.contrib.sitemaps.views.sitemap",
+    ),
+    path("robots.txt", robots_txt_view, name="robots_txt"),
     path(
         "googled8a925164540d992.html",
         google_site_verification_view,

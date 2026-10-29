@@ -1,7 +1,9 @@
-from urllib.parse import quote
+
 import re
+from urllib.parse import quote
 
 from django.conf import settings
+from django.http import HttpResponse
 from django.shortcuts import redirect
 from django.views.generic import TemplateView
 
@@ -41,3 +43,22 @@ class LandingPageView(TemplateView):
         )
 
         return context
+
+
+def robots_txt_view(request):
+    content = """\
+User-agent: *
+Allow: /
+
+Disallow: /admin/
+Disallow: /api/
+Disallow: /accounts/
+Disallow: /dashboard/
+Disallow: /billing/
+
+Sitemap: https://avisanozap.com.br/sitemap.xml
+"""
+    return HttpResponse(
+        content,
+        content_type="text/plain; charset=utf-8",
+    )
