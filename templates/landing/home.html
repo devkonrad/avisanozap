@@ -11,6 +11,19 @@
         {% include "includes/seo_meta.html" %}
     {% endwith %}
 
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "AvisanoZap",
+        "applicationCategory": "BusinessApplication",
+        "operatingSystem": "Web",
+        "url": "https://avisanozap.com.br/",
+        "description": "Sistema de agendamento online com lembretes automáticos pelo WhatsApp. Organize seus horários e reduza faltas de clientes.",
+        "inLanguage": "pt-BR"
+    }
+    </script>
+
     <link rel="stylesheet" href="{% static 'landing/css/home.css' %}">
     <script src="{% static 'landing/js/home.js' %}" defer></script>
 </head>
