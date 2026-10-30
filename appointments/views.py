@@ -30,18 +30,51 @@ from .tasks import send_appointment_notifications
 
 logger = logging.getLogger(__name__)
 
-
 def public_schedule_view(request, slug):
     """Display the public scheduling page for a professional."""
-    profile = get_object_or_404(ProfessionalProfile, slug=slug)
+    profile = get_object_or_404(
+        ProfessionalProfile.objects.select_related("user"),
+        slug=slug,
+    )
     services = profile.services.filter(is_active=True)
 
+    professional_name = (
+        profile.user.get_full_name().strip()
+        or profile.user.username
+    )
+
+    service_names = list(
+        services.values_list("name", flat=True)[:5]
+    )
+
+    description = (
+        f"Agende seu horário com {professional_name} online. "
+    )
+
+    if service_names:
+        description += (
+            f"Confira serviços como {', '.join(service_names)} "
+            "e escolha o melhor horário."
+        )
+    else:
+        description += (
+            "Consulte os serviços disponíveis e solicite seu horário."
+        )
+
     context = {
-        "profile_name": profile.slug.replace("-", " ").title(),
+        "profile_name": professional_name,
         "profile": profile,
         "services": services,
+        "seo_title": f"Agende com {professional_name} | AvisanoZap",
+        "seo_description": description,
+        "seo_canonical": request.build_absolute_uri(),
     }
-    return render(request, "appointments/public_schedule.html", context)
+
+    return render(
+        request,
+        "appointments/public_schedule.html",
+        context,
+    )
 
 
 @login_required

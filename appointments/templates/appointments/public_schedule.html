@@ -1,11 +1,13 @@
-
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
+<head>
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#047857">
-    <title>Agendar com {{ profile.user.get_full_name|default:profile.user.username }} | AvisanoZap</title>
+
+    {% include "includes/seo_meta.html" %}
 
     <script src="https://cdn.tailwindcss.com"></script>
 

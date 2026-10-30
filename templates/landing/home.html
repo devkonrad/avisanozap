@@ -5,13 +5,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta
-        name="description"
-        content="Organize seus agendamentos e simplifique os lembretes pelo WhatsApp com o AvisanoZap. Tenha 30 dias de acesso por R$ 35,90 via Pix."
-    >
     <meta name="theme-color" content="#f7faf8">
 
-    <title>AvisanoZap | Organize seus agendamentos pelo WhatsApp</title>
+    {% with seo_title="AvisanoZap | Sistema de Agendamento e Lembretes pelo WhatsApp" seo_description="Organize seus agendamentos, automatize lembretes pelo WhatsApp e reduza faltas dos seus clientes. Experimente o AvisanoZap." seo_canonical="https://avisanozap.com.br/" %}
+        {% include "includes/seo_meta.html" %}
+    {% endwith %}
 
     <link rel="stylesheet" href="{% static 'landing/css/home.css' %}">
     <script src="{% static 'landing/js/home.js' %}" defer></script>
