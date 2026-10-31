@@ -11,6 +11,19 @@
         {% include "includes/seo_meta.html" %}
     {% endwith %}
 
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-KQR4RKXPZ0"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+
+        function gtag() {
+            dataLayer.push(arguments);
+        }
+
+        gtag('js', new Date());
+        gtag('config', 'G-KQR4RKXPZ0');
+    </script>
+
     <script type="application/ld+json">
     {
         "@context": "https://schema.org",
