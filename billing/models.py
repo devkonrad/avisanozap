@@ -123,6 +123,14 @@ class Subscription(models.Model):
         blank=True,
         default="",
     )
+    ga_client_id = models.CharField(
+        max_length=100,
+        blank=True,
+    )
+    ga_session_id = models.CharField(
+        max_length=100,
+        blank=True,
+    )
     plan = models.CharField(max_length=20, choices=PLAN_CHOICES)
     status = models.CharField(
         max_length=20,
@@ -401,3 +409,41 @@ class MercadoPagoWebhookEvent(models.Model):
 
     def __str__(self):
         return f'{self.event_type} - {self.event_id}'
+
+
+class GA4Event(models.Model):
+    EVENT_SIGN_UP = "sign_up"
+    EVENT_BEGIN_CHECKOUT = "begin_checkout"
+    EVENT_PURCHASE = "purchase"
+
+    EVENT_CHOICES = [
+        (EVENT_SIGN_UP, "Cadastro"),
+        (EVENT_BEGIN_CHECKOUT, "Início do checkout"),
+        (EVENT_PURCHASE, "Compra"),
+    ]
+
+    event_id = models.CharField(max_length=150, unique=True)
+    event_name = models.CharField(
+        max_length=50,
+        choices=EVENT_CHOICES,
+    )
+    client_id = models.CharField(max_length=100)
+    session_id = models.CharField(max_length=100, blank=True)
+    params = models.JSONField(default=dict)
+    sent_at = models.DateTimeField(null=True, blank=True)
+    attempts = models.PositiveSmallIntegerField(default=0)
+    last_error = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "billing_ga4event"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(
+                fields=["sent_at", "created_at"],
+                name="ga4_pending_events_idx",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.event_name} - {self.event_id}"

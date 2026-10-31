@@ -60,6 +60,7 @@
         a { color: #176b50; }
         .errorlist { color: #b42318; }
     </style>
+    {% include "includes/ga4_tracking.html" %}
 </head>
 
 <body>
@@ -77,6 +78,8 @@
         <form method="post">
             {% csrf_token %}
             <input type="hidden" name="next" value="{{ next }}">
+            <input type="hidden" name="ga_client_id" value="">
+            <input type="hidden" name="ga_session_id" value="">
             <input
                 type="hidden"
                 name="subscription"

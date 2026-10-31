@@ -11,6 +11,7 @@
     >
     <title>Confirmar contratação | AvisanoZap</title>
     <link rel="stylesheet" href="{% static 'landing/css/home.css' %}">
+    {% include "includes/ga4_tracking.html" %}
 </head>
 <body>
     <main class="pricing-section">
@@ -65,7 +66,8 @@
 
                     <form method="post">
                         {% csrf_token %}
-
+                        <input type="hidden" name="ga_client_id" value="">
+                        <input type="hidden" name="ga_session_id" value="">
                         {% if email_form %}
                             {% if email_form.non_field_errors %}
                                 {% for error in email_form.non_field_errors %}
