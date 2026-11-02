@@ -1,3 +1,4 @@
+
 import json
 import logging
 
@@ -11,6 +12,7 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 
 from appointments.models import ProfessionalProfile
+from billing.analytics import create_ga4_event
 from billing.forms import CheckoutEmailForm
 from billing.models import (
     PROVIDER_ASAAS,
@@ -35,6 +37,31 @@ from billing.services.mercado_pago_webhooks import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _track_begin_checkout(subscription, plan):
+    """Track the first successful checkout initialization."""
+    if subscription.provider != PROVIDER_MERCADO_PAGO:
+        return
+
+    create_ga4_event(
+        event_id=f"begin_checkout:{subscription.pk}",
+        event_name="begin_checkout",
+        client_id=subscription.ga_client_id,
+        session_id=subscription.ga_session_id,
+        params={
+            "currency": "BRL",
+            "value": float(plan.amount),
+            "items": [
+                {
+                    "item_id": plan.code,
+                    "item_name": plan.name,
+                    "price": float(plan.amount),
+                    "quantity": 1,
+                }
+            ],
+        },
+    )
 
 
 def checkout(request, plan_code):
@@ -80,6 +107,7 @@ def checkout(request, plan_code):
             {
                 "plan": plan,
                 "email_form": email_form,
+                "ga4_measurement_id": settings.GA4_MEASUREMENT_ID,
             },
         )
 
@@ -93,12 +121,16 @@ def checkout(request, plan_code):
             {
                 "plan": plan,
                 "email_form": email_form,
+                "ga4_measurement_id": settings.GA4_MEASUREMENT_ID,
             },
             status=400,
         )
 
     email = email_form.cleaned_data["email"].strip().lower()
     whatsapp_number = email_form.cleaned_data["whatsapp_number"]
+
+    ga_client_id = request.POST.get("ga_client_id", "").strip()[:100]
+    ga_session_id = request.POST.get("ga_session_id", "").strip()[:100]
 
     open_statuses = [
         Subscription.STATUS_PENDING,
@@ -141,13 +173,23 @@ def checkout(request, plan_code):
 
         subscription.customer_email = email
         subscription.customer_whatsapp = whatsapp_number
-        subscription.save(
-            update_fields=[
-                "customer_email",
-                "customer_whatsapp",
-                "updated_at",
-            ],
-        )
+
+        update_fields = [
+            "customer_email",
+            "customer_whatsapp",
+            "updated_at",
+        ]
+
+        if ga_client_id:
+            subscription.ga_client_id = ga_client_id
+            update_fields.append("ga_client_id")
+
+        if ga_session_id:
+            subscription.ga_session_id = ga_session_id
+            update_fields.append("ga_session_id")
+
+        subscription.save(update_fields=update_fields)
+
     else:
         billing_settings = BillingSettings.objects.filter(
             pk=1,
@@ -185,6 +227,8 @@ def checkout(request, plan_code):
                     amount=plan.amount,
                     status=Subscription.STATUS_PENDING,
                     provider=provider,
+                    ga_client_id=ga_client_id,
+                    ga_session_id=ga_session_id,
                 )
         except IntegrityError:
             messages.error(
@@ -195,6 +239,7 @@ def checkout(request, plan_code):
             return redirect("home")
 
     if subscription.provider_checkout_url:
+        _track_begin_checkout(subscription, plan)
         return redirect(subscription.provider_checkout_url)
 
     callback_url = request.build_absolute_uri(
@@ -250,6 +295,8 @@ def checkout(request, plan_code):
         ],
     )
 
+    _track_begin_checkout(subscription, plan)
+
     return redirect(subscription.provider_checkout_url)
 
 
@@ -270,6 +317,7 @@ def checkout_return(request, subscription_id):
             ),
         },
     )
+
 
 @csrf_exempt
 def mercado_pago_webhook(request):

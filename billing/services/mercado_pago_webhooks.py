@@ -1,3 +1,4 @@
+
 from datetime import timedelta
 from decimal import Decimal, InvalidOperation
 
@@ -5,6 +6,8 @@ from django.db import transaction
 from django.utils import timezone
 
 from appointments.services import send_signup_continuation_message
+from billing.analytics import create_ga4_event
+from billing.email_tasks import send_payment_receipt
 from billing.models import (
     PROVIDER_MERCADO_PAGO,
     BillingPlan,
@@ -12,7 +15,7 @@ from billing.models import (
     Subscription,
 )
 from billing.services.mercado_pago import get_order
-from billing.email_tasks import send_payment_receipt
+
 
 class MercadoPagoWebhookProcessingError(Exception):
     """Raised when a Mercado Pago order cannot be safely processed."""
@@ -137,7 +140,7 @@ def process_mercado_pago_order(order_id):
                 "The payment amount does not match the subscription amount."
             )
 
-        payment, created = Payment.objects.get_or_create(
+        payment, _ = Payment.objects.get_or_create(
             provider=PROVIDER_MERCADO_PAGO,
             provider_payment_id=str(provider_payment_id),
             defaults={
@@ -156,12 +159,17 @@ def process_mercado_pago_order(order_id):
                 "The payment ID is already associated with another record."
             )
 
-        if payment.status not in (
-            Payment.STATUS_CONFIRMED,
-            Payment.STATUS_RECEIVED,
-        ):
+        payment_updated = False
+
+        if payment.status != Payment.STATUS_CONFIRMED:
             payment.status = Payment.STATUS_CONFIRMED
-            payment.paid_at = payment.paid_at or timezone.now()
+            payment_updated = True
+
+        if not payment.paid_at:
+            payment.paid_at = timezone.now()
+            payment_updated = True
+
+        if payment_updated:
             payment.save(
                 update_fields=["status", "paid_at", "updated_at"]
             )
@@ -192,7 +200,28 @@ def process_mercado_pago_order(order_id):
                 )
             )
 
-        # Send receipt email
+        create_ga4_event(
+            event_id=(
+                f"purchase:mercado_pago:{provider_payment_id}"
+            ),
+            event_name="purchase",
+            client_id=subscription.ga_client_id,
+            session_id=subscription.ga_session_id,
+            params={
+                "transaction_id": str(provider_payment_id),
+                "value": float(payment_amount),
+                "currency": "BRL",
+                "items": [
+                    {
+                        "item_id": subscription.billing_plan.code,
+                        "item_name": subscription.billing_plan.name,
+                        "price": float(payment_amount),
+                        "quantity": 1,
+                    }
+                ],
+            },
+        )
+
         if not payment.receipt_email_sent_at:
             payment_id = str(payment.pk)
 
@@ -200,4 +229,4 @@ def process_mercado_pago_order(order_id):
                 lambda: send_payment_receipt.delay(payment_id)
             )
 
-        return created
+        return True

@@ -1,3 +1,4 @@
+
 {% load static %}
 
 <!DOCTYPE html>
@@ -64,10 +65,22 @@
                         {{ plan.get_payment_method_display }}
                     </div>
 
-                    <form method="post">
+                    <form method="post" id="checkout-form">
                         {% csrf_token %}
-                        <input type="hidden" name="ga_client_id" value="">
-                        <input type="hidden" name="ga_session_id" value="">
+
+                        <input
+                            type="hidden"
+                            name="ga_client_id"
+                            id="ga-client-id"
+                            value=""
+                        >
+                        <input
+                            type="hidden"
+                            name="ga_session_id"
+                            id="ga-session-id"
+                            value=""
+                        >
+
                         {% if email_form %}
                             {% if email_form.non_field_errors %}
                                 {% for error in email_form.non_field_errors %}
@@ -134,6 +147,7 @@
                         <button
                             class="button button-primary button-full"
                             type="submit"
+                            id="checkout-submit"
                         >
                             Continuar para o pagamento
                             <span aria-hidden="true">→</span>
@@ -155,5 +169,88 @@
             </div>
         </div>
     </main>
+
+    <script>
+        (function () {
+            const form = document.getElementById("checkout-form");
+            const clientIdInput = document.getElementById("ga-client-id");
+            const sessionIdInput = document.getElementById("ga-session-id");
+            const submitButton = document.getElementById("checkout-submit");
+            const measurementId = "{{ ga4_measurement_id|escapejs }}";
+
+            if (!form || !clientIdInput || !sessionIdInput) {
+                return;
+            }
+
+            let submissionStarted = false;
+
+            function submitForm() {
+                if (submissionStarted) {
+                    return;
+                }
+
+                submissionStarted = true;
+                form.submit();
+            }
+
+            form.addEventListener("submit", function (event) {
+                if (submissionStarted) {
+                    return;
+                }
+
+                event.preventDefault();
+
+                if (submitButton) {
+                    submitButton.disabled = true;
+                }
+
+                if (
+                    typeof window.gtag !== "function"
+                    || !measurementId
+                ) {
+                    submitForm();
+                    return;
+                }
+
+                let pendingRequests = 2;
+                let completed = false;
+
+                const timeout = window.setTimeout(function () {
+                    completed = true;
+                    submitForm();
+                }, 1500);
+
+                function onValueReceived() {
+                    pendingRequests -= 1;
+
+                    if (pendingRequests === 0 && !completed) {
+                        completed = true;
+                        window.clearTimeout(timeout);
+                        submitForm();
+                    }
+                }
+
+                window.gtag(
+                    "get",
+                    measurementId,
+                    "client_id",
+                    function (value) {
+                        clientIdInput.value = value || "";
+                        onValueReceived();
+                    }
+                );
+
+                window.gtag(
+                    "get",
+                    measurementId,
+                    "session_id",
+                    function (value) {
+                        sessionIdInput.value = value || "";
+                        onValueReceived();
+                    }
+                );
+            });
+        })();
+    </script>
 </body>
 </html>

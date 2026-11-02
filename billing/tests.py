@@ -17,6 +17,7 @@ from billing.models import (
     PROVIDER_MERCADO_PAGO,
     BillingPlan,
     BillingSettings,
+    GA4Event,
     MercadoPagoWebhookEvent,
     Payment,
     Subscription,
@@ -954,6 +955,8 @@ class MercadoPagoOrderProcessingTests(TestCase):
             provider=PROVIDER_MERCADO_PAGO,
             status=Subscription.STATUS_PENDING,
             provider_checkout_id="order-456",
+            ga_client_id="1234567890.1234567890",
+            ga_session_id="1790000000",
         )
         self.order = {
             "id": "order-456",
@@ -973,6 +976,7 @@ class MercadoPagoOrderProcessingTests(TestCase):
                 ],
             },
         }
+
 
     @patch("billing.services.mercado_pago_webhooks.get_order")
     def test_credited_order_activates_subscription(self, mock_get_order):
@@ -1066,3 +1070,54 @@ class MercadoPagoOrderProcessingTests(TestCase):
             original_expires_at,
         )
         self.assertEqual(Payment.objects.count(), 1)
+
+    @patch("billing.analytics_tasks.send_ga4_event.delay")
+    @patch("billing.services.mercado_pago_webhooks.get_order")
+    def test_credited_order_creates_purchase_event_once(
+        self,
+        mock_get_order,
+        mock_send_event,
+    ):
+        mock_get_order.return_value = self.order
+
+        with self.captureOnCommitCallbacks(execute=True):
+            first_result = process_mercado_pago_order("order-456")
+
+        with self.captureOnCommitCallbacks(execute=True):
+            second_result = process_mercado_pago_order("order-456")
+
+        self.assertTrue(first_result)
+        self.assertTrue(second_result)
+
+        event = GA4Event.objects.get(
+            event_name="purchase",
+        )
+
+        self.assertEqual(
+            GA4Event.objects.filter(event_name="purchase").count(),
+            1,
+        )
+        self.assertEqual(
+            event.event_id,
+            "purchase:mercado_pago:payment-123",
+        )
+        self.assertEqual(
+            event.client_id,
+            "1234567890.1234567890",
+        )
+        self.assertEqual(
+            event.session_id,
+            "1790000000",
+        )
+        self.assertEqual(
+            event.params["transaction_id"],
+            "payment-123",
+        )
+        self.assertEqual(event.params["value"], 49.9)
+        self.assertEqual(event.params["currency"], "BRL")
+        self.assertEqual(
+            event.params["items"][0]["item_id"],
+            self.plan.code,
+        )
+
+        mock_send_event.assert_called_once_with(str(event.pk))
