@@ -1,0 +1,33 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<div id="content-main">
+    <h2>Resultado da importação</h2>
+
+    <ul>
+        <li>Total de linhas processadas: {{ result.total }}</li>
+        <li>Importados: {{ result.imported }}</li>
+        <li>Duplicados ignorados: {{ result.duplicates }}</li>
+        <li>Inválidos: {{ result.invalid }}</li>
+    </ul>
+
+    {% if result.errors %}
+        <h3>Erros encontrados</h3>
+
+        <ul>
+            {% for error in result.errors %}
+                <li>{{ error }}</li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+
+    <div class="submit-row">
+        <a
+            href="{% url 'admin:prospects_prospect_changelist' %}"
+            class="button default"
+        >
+            Voltar aos potenciais clientes
+        </a>
+    </div>
+</div>
+{% endblock %}

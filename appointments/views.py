@@ -13,6 +13,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
+from prospects.services import process_prospect_reply
 
 from .forms import (
     ProfessionalProfileUpdateForm,
@@ -323,7 +324,7 @@ def professional_profile_view(request):
 @csrf_exempt
 @require_POST
 def evolution_webhook_view(request):
-    """Process appointment confirmation replies from Evolution API."""
+    """Process appointment and prospect replies from Evolution API."""
     expected_token = settings.EVOLUTION_WEBHOOK_TOKEN
     provided_token = request.headers.get("X-Webhook-Token", "")
 
@@ -361,9 +362,13 @@ def evolution_webhook_view(request):
     if not isinstance(key, dict) or not isinstance(message, dict):
         return JsonResponse({"received": True})
 
-    # Try the alternate JID first because remoteJid may contain a LID.
+    # Ignore messages sent by our own WhatsApp account.
+    if key.get("fromMe") is True:
+        return JsonResponse({"received": True})
+
     phone = None
 
+    # Try the alternate JID first because remoteJid may contain a LID.
     for jid in (key.get("remoteJidAlt"), key.get("remoteJid")):
         if not isinstance(jid, str):
             continue
@@ -389,13 +394,13 @@ def evolution_webhook_view(request):
         if isinstance(extended_text, dict):
             text = extended_text.get("text", "")
 
-    if not isinstance(text, str):
+    if not isinstance(text, str) or not text.strip():
         return JsonResponse({"received": True})
 
     answer = text.strip().upper()
-
-    if answer not in {"SIM", "NÃO", "NAO"}:
-        return JsonResponse({"received": True})
+    provider_message_id = key.get("id", "")
+    if not isinstance(provider_message_id, str):
+        provider_message_id = ""
 
     legacy_phone = (
         f"{phone[:4]}{phone[5:]}"
@@ -403,132 +408,158 @@ def evolution_webhook_view(request):
         else phone
     )
 
-    # Lock matching pending appointments to avoid processing concurrent replies.
-    with transaction.atomic():
-        appointments = list(
-            Appointment.objects.select_for_update(
-                of=("self",),
-            )
-            .filter(
-                Q(client_whatsapp=phone)
-                | Q(client_whatsapp=legacy_phone),
-                status=Appointment.STATUS_PENDING_CONFIRMATION,
-            )
-            .select_related("service", "professional")
-            .order_by("-created_at", "-id")
-        )
-
-        if not appointments:
-            logger.info(
-                "No pending appointments found for phone %s.",
-                phone,
-            )
-            return JsonResponse({"received": True})
-
-        if answer != "SIM" and len(appointments) > 1:
-            logger.info(
-                "Cancellation reply not processed: found %s pending "
-                "appointments for phone %s.",
-                len(appointments),
-                phone,
-            )
-            return JsonResponse({"received": True})
-
-        # For SIM, confirm the newest pending appointment.
-        appointment = appointments[0]
-        confirmed = answer == "SIM"
-
-        if confirmed and len(appointments) > 1:
-            other_ids = [item.id for item in appointments[1:]]
-
-            deleted_count, _ = Appointment.objects.filter(
-                id__in=other_ids,
-                status=Appointment.STATUS_PENDING_CONFIRMATION,
-            ).delete()
-
-            logger.info(
-                "Deleted %s duplicate pending appointments for phone %s.",
-                deleted_count,
-                phone,
+    # Appointment replies take priority over prospect replies.
+    if answer in {"SIM", "NÃO", "NAO"}:
+        with transaction.atomic():
+            appointments = list(
+                Appointment.objects.select_for_update(
+                    of=("self",),
+                )
+                .filter(
+                    Q(client_whatsapp=phone)
+                    | Q(client_whatsapp=legacy_phone),
+                    status=Appointment.STATUS_PENDING_CONFIRMATION,
+                )
+                .select_related("service", "professional")
+                .order_by("-created_at", "-id")
             )
 
-        appointment.status = (
-            Appointment.STATUS_CONFIRMED
-            if confirmed
-            else Appointment.STATUS_CANCELED
-        )
-        appointment.save(update_fields=["status"])
+            if appointments:
+                if answer != "SIM" and len(appointments) > 1:
+                    logger.info(
+                        "Cancellation reply not processed: found %s "
+                        "pending appointments for phone %s.",
+                        len(appointments),
+                        phone,
+                    )
+                    return JsonResponse({"received": True})
 
-    if confirmed:
-        service_name = (
-            appointment.service.name
-            if appointment.service
-            else "Serviço não informado"
-        )
+                appointment = appointments[0]
+                confirmed = answer == "SIM"
 
-        professional = appointment.professional
-        professional_name = (
-            getattr(professional, "name", None)
-            or getattr(professional, "slug", None)
-            or "PROFISSIONAL"
-        ).replace("-", "").upper()
+                if confirmed and len(appointments) > 1:
+                    other_ids = [
+                        item.id for item in appointments[1:]
+                    ]
 
-        date_formatted = timezone.localtime(
-            appointment.start_datetime
-        ).strftime("%d/%m/%Y às %H:%M")
+                    deleted_count, _ = Appointment.objects.filter(
+                        id__in=other_ids,
+                        status=Appointment.STATUS_PENDING_CONFIRMATION,
+                    ).delete()
 
-        notifications = [
-            (
-                appointment.client_whatsapp,
-                (
-                    f"Olá, {appointment.client_name}! 😊\n\n"
-                    f"Seu agendamento de *{service_name}* com "
-                    f"*{professional_name}* está confirmado para "
-                    f"*{date_formatted}*.\n\n"
-                    "Obrigado por usar o AvisanoZap!"
-                ),
-            ),
-        ]
+                    logger.info(
+                        "Deleted %s duplicate pending appointments "
+                        "for phone %s.",
+                        deleted_count,
+                        phone,
+                    )
 
-        if professional.whatsapp_number:
-            notifications.append(
-                (
-                    professional.whatsapp_number,
+                appointment.status = (
+                    Appointment.STATUS_CONFIRMED
+                    if confirmed
+                    else Appointment.STATUS_CANCELED
+                )
+                appointment.save(update_fields=["status"])
+            else:
+                appointment = None
+
+        if appointment is not None:
+            if confirmed:
+                service_name = (
+                    appointment.service.name
+                    if appointment.service
+                    else "Serviço não informado"
+                )
+
+                professional = appointment.professional
+                professional_name = (
+                    getattr(professional, "name", None)
+                    or getattr(professional, "slug", None)
+                    or "PROFISSIONAL"
+                ).replace("-", "").upper()
+
+                date_formatted = timezone.localtime(
+                    appointment.start_datetime
+                ).strftime("%d/%m/%Y às %H:%M")
+
+                notifications = [
                     (
-                        "✅ *Agendamento confirmado!*\n\n"
-                        f"O cliente *{appointment.client_name}* confirmou "
-                        f"o agendamento de *{service_name}* para "
-                        f"*{date_formatted}*."
+                        appointment.client_whatsapp,
+                        (
+                            f"Olá, {appointment.client_name}! 😊\n\n"
+                            f"Seu agendamento de *{service_name}* com "
+                            f"*{professional_name}* está confirmado para "
+                            f"*{date_formatted}*.\n\n"
+                            "Obrigado por usar o AvisanoZap!"
+                        ),
                     ),
-                )
+                ]
+
+                if professional.whatsapp_number:
+                    notifications.append(
+                        (
+                            professional.whatsapp_number,
+                            (
+                                "✅ *Agendamento confirmado!*\n\n"
+                                f"O cliente *{appointment.client_name}* "
+                                f"confirmou o agendamento de "
+                                f"*{service_name}* para "
+                                f"*{date_formatted}*."
+                            ),
+                        )
+                    )
+
+                for number, notification in notifications:
+                    try:
+                        sent = send_whatsapp_message(
+                            number=number,
+                            text=notification,
+                        )
+                    except Exception:
+                        logger.exception(
+                            "Unexpected error sending confirmation "
+                            "notification for appointment %s.",
+                            appointment.id,
+                        )
+                        continue
+
+                    if not sent:
+                        logger.error(
+                            "Failed to send confirmation notification "
+                            "for appointment %s.",
+                            appointment.id,
+                        )
+
+            logger.info(
+                "Appointment %s status updated to %s.",
+                appointment.id,
+                appointment.status,
             )
+            return JsonResponse({"received": True})
 
-        for number, notification in notifications:
-            try:
-                sent = send_whatsapp_message(
-                    number=number,
-                    text=notification,
-                )
-            except Exception:
-                logger.exception(
-                    "Unexpected error sending confirmation notification "
-                    "for appointment %s.",
-                    appointment.id,
-                )
-                continue
-
-            if not sent:
-                logger.error(
-                    "Failed to send confirmation notification "
-                    "for appointment %s.",
-                    appointment.id,
-                )
+    # No pending appointment consumed this reply. Check prospects.
+    try:
+        result = process_prospect_reply(
+            phone=phone,
+            message=text.strip(),
+            provider_message_id=provider_message_id,
+        )
+    except Exception:
+        logger.exception(
+            "Unexpected error processing prospect reply from %s.",
+            phone,
+        )
+        return JsonResponse(
+            {"detail": "Error processing prospect reply."},
+            status=500,
+        )
 
     logger.info(
-        "Appointment %s status updated to %s.",
-        appointment.id,
-        appointment.status,
+        "Prospect reply from %s processed with result: %s.",
+        phone,
+        result,
     )
+
     return JsonResponse({"received": True})
 
 

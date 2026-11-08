@@ -30,6 +30,7 @@ INSTALLED_APPS = [
     "django.contrib.sitemaps",
     "appointments",
     "billing",
+    "prospects",
 ]
 
 MIDDLEWARE = [

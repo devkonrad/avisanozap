@@ -1,0 +1,34 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<div id="content-main">
+    <p>
+        Selecione o arquivo CSV com os estabelecimentos
+        que deseja importar.
+    </p>
+
+    <p>
+        Telefones já cadastrados ou repetidos no arquivo
+        serão ignorados.
+    </p>
+
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        {{ form.as_p }}
+
+        <div class="submit-row">
+            <input
+                type="submit"
+                value="Importar estabelecimentos"
+                class="default"
+            >
+            <a
+                href="{% url 'admin:prospects_prospect_changelist' %}"
+                class="button cancel-link"
+            >
+                Voltar
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}
