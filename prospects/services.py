@@ -16,14 +16,16 @@ logger = logging.getLogger(__name__)
 
 FIRST_CONTACT_MESSAGE = (
     "Olá! Tudo bem? 😊\n\n"
-    "Aqui é da equipe AvisanoZap.\n\n"
+    "Aqui é da equipe AvisanoZap!\n\n"
     "Ajudamos salões de beleza e barbearias a organizar "
     "agendamentos e enviar lembretes automáticos pelo WhatsApp, "
     "facilitando a rotina e ajudando a reduzir faltas.\n\n"
-    "Você gostaria de conhecer melhor a ferramenta e receber "
-    "uma apresentação com nossa oferta especial?\n\n"
-    "Se não tiver interesse, basta responder NÃO e não enviaremos "
-    "novas mensagens comerciais."
+    "Gostaria de conhecer nossa ferramenta e receber uma oferta "
+    "especial para o seu estabelecimento?\n\n"
+    "👉 Responda SIM para receber mais informações e conhecer "
+    "nossa oferta especial.\n\n"
+    "Se não tiver interesse, responda NÃO e encerraremos "
+    "o contato comercial. Não enviaremos novas mensagens."
 )
 
 
