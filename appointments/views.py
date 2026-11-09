@@ -362,9 +362,11 @@ def evolution_webhook_view(request):
     if not isinstance(key, dict) or not isinstance(message, dict):
         return JsonResponse({"received": True})
 
+    """
     # Ignore messages sent by our own WhatsApp account.
     if key.get("fromMe") is True:
         return JsonResponse({"received": True})
+    """
 
     phone = None
 
