@@ -14,6 +14,7 @@ from .models import Prospect, ProspectInteraction
 logger = logging.getLogger(__name__)
 
 
+"""
 FIRST_CONTACT_MESSAGE = (
     "Olá! Tudo bem? 😊\n\n"
     "Aqui é da equipe AvisanoZap!\n\n"
@@ -27,7 +28,19 @@ FIRST_CONTACT_MESSAGE = (
     "Se não tiver interesse, responda NÃO e encerraremos "
     "o contato comercial. Não enviaremos novas mensagens."
 )
+"""
 
+FIRST_CONTACT_MESSAGE = (
+    "Bom dia! Gostaria de apresentar nosso trabalho. 😊\n\n"
+    "O AvisanoZap ajuda salões de beleza e barbearias a organizar "
+    "serviços e agendamentos e enviar lembretes automáticos pelo "
+    "WhatsApp, reduzindo faltas e facilitando a rotina.\n\n"
+    "Estamos com uma oferta especial: primeiro mês por apenas "
+    "R$ 9,99!\n\n"
+    "Você pode conhecer os recursos e fazer seu cadastro pelo site:\n"
+    "https://avisanozap.com.br/\n\n"
+    "Não precisa instalar nada no computador. É simples de usar!"
+)
 
 PROSPECT_OFFER_MESSAGE = (
     "Que ótimo! 😊\n\n"
@@ -104,11 +117,13 @@ def send_prospect_first_contact(prospect, user=None):
     if not prospect.can_receive_whatsapp:
         return "not_authorized"
 
+    """
     if prospect.phone_status != Prospect.PhoneStatus.WHATSAPP_CONFIRMED:
         return "phone_not_confirmed"
 
     if prospect.sales_status != Prospect.SalesStatus.NEW:
         return "already_contacted"
+    """
 
     sent = send_whatsapp_message(
         number=prospect.phone_number,

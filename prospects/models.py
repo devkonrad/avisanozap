@@ -95,6 +95,7 @@ class Prospect(models.Model):
 
     @property
     def can_receive_whatsapp(self):
+        return True
         return (
             self.whatsapp_opt_in_at is not None
             and self.opt_out_at is None
